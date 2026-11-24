@@ -97,10 +97,13 @@ class _AppButtonState extends State<AppButton> {
                   Icon(widget.icon, size: 17, color: fg),
                   const SizedBox(width: 8),
                 ],
-                Text(widget.label,
-                    style: TextStyle(
-                        color: enabled ? fg : C.textSecondary,
-                        fontSize: 13.5, fontWeight: FontWeight.w600)),
+                Flexible(
+                  child: Text(widget.label,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: enabled ? fg : C.textSecondary,
+                          fontSize: 13.5, fontWeight: FontWeight.w600)),
+                ),
               ],
             ),
           ),
@@ -711,7 +714,9 @@ class SegmentedX<T> extends StatelessWidget {
         color: const Color(0xFFEEF1F8),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
         for (final (value, label) in options)
           GestureDetector(
             onTap: () => onChanged(value),
@@ -731,7 +736,8 @@ class SegmentedX<T> extends StatelessWidget {
                   color: selected == value ? C.primary : C.textSecondary)),
             ),
           ),
-      ]),
+        ]),
+      ),
     );
   }
 }
@@ -890,9 +896,11 @@ class FormFooter extends StatelessWidget {
           const Spacer(),
         TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('cancel'), style: const TextStyle(color: C.textSecondary))),
         const SizedBox(width: 10),
-        AppButton(label: submitLabel ?? tr('save'),
-            kind: danger ? AppButtonKind.danger : AppButtonKind.primary,
-            onPressed: enabled ? onSubmit : null),
+        Flexible(
+          child: AppButton(label: submitLabel ?? tr('save'),
+              kind: danger ? AppButtonKind.danger : AppButtonKind.primary,
+              onPressed: enabled ? onSubmit : null),
+        ),
       ]),
     );
   }

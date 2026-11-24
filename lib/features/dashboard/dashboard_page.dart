@@ -128,7 +128,8 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ]),
           const SizedBox(height: 16),
-          Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          IntrinsicHeight(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Expanded(child: KpiCard(title: tr('kpi.revenue'), value: Money.fmt(revenue), icon: 'revenue', color: C.primary)),
             const SizedBox(width: 12),
             Expanded(child: KpiCard(title: tr('kpi.totalSales'), value: Money.fmt(salesCount), icon: 'sales', color: C.secondary, subtitle: '$salesCount')),
@@ -138,9 +139,11 @@ class _DashboardPageState extends State<DashboardPage> {
             Expanded(child: KpiCard(title: tr('kpi.netProfit'), value: Money.fmt(net), icon: 'net', color: net >= 0 ? C.success : C.danger)),
             const SizedBox(width: 12),
             Expanded(child: KpiCard(title: tr('kpi.expenses'), value: Money.fmt(expenses), icon: 'expense', color: C.warning)),
-          ]),
+            ]),
+          ),
           const SizedBox(height: 14),
-          Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          IntrinsicHeight(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Expanded(child: KpiCard(title: tr('kpi.products'), value: '$products', icon: 'products', color: C.primary, subtitle: Money.fmt(stockValue))),
             const SizedBox(width: 12),
             Expanded(child: KpiCard(title: tr('kpi.lowStock'), value: '$lowStock', icon: 'lowstock', color: lowStock > 0 ? C.warning : C.success)),
@@ -150,7 +153,8 @@ class _DashboardPageState extends State<DashboardPage> {
             Expanded(child: KpiCard(title: tr('kpi.supplierDebt'), value: Money.fmt(supDebt), icon: 'suppliers', color: C.secondary)),
             const SizedBox(width: 12),
             Expanded(child: _quickActions(context)),
-          ]),
+            ]),
+          ),
           const SizedBox(height: 20),
           if (products == 0)
             EmptyStateX(

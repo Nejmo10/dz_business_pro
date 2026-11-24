@@ -275,9 +275,12 @@ class _ProductCardState extends State<ProductCard> {
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: 3),
               Row(children: [
-                Text(Money.fmt(p.priceC, locale: gLocale),
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: C.primary)),
-                const Spacer(),
+                Flexible(
+                  child: Text(Money.fmt(p.priceC, locale: gLocale),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: C.primary)),
+                ),
+                const SizedBox(width: 6),
                 BadgeX(text: '${tr('pos.stock')} ${p.stockQty}', color: _stockColor),
               ]),
             ]),
