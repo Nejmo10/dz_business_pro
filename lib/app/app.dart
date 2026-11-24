@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import '../features/onboarding/onboarding_page.dart';
 import '../features/shell.dart';
@@ -36,7 +37,12 @@ class DzBusinessApp extends StatelessWidget {
                 theme: theme,
                 locale: Locale(locale),
                 supportedLocales: const [Locale('ar'), Locale('fr')],
-                localizationsDelegates: const [AppL10n.delegate],
+                localizationsDelegates: const [
+                  AppL10n.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
                 builder: (context, child) => Directionality(
                   textDirection: locale == 'ar' ? TextDirection.rtl : TextDirection.ltr,
                   child: child ?? const SizedBox.shrink(),
