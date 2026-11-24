@@ -132,6 +132,8 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 16),
         _backupCard(context),
         const SizedBox(height: 16),
+        _resetCard(context),
+        const SizedBox(height: 16),
         _auditCard(context),
         const SizedBox(height: 16),
         _aboutCard(context),
@@ -334,6 +336,53 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (e) {
       if (mounted) Toasts.show(context, '${tr('error')}: $e', kind: ToastKind.error);
     }
+  }
+
+  // ------------------------------------------------------- danger/void zone --
+  Widget _resetCard(BuildContext context) {
+    final st = context.read<AppState>();
+    return HoverCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        FormHeader(title: tr('settings.reset'), subtitle: tr('settings.resetHint')),
+        const SizedBox(height: 12),
+        Wrap(spacing: 10, runSpacing: 10, children: [
+          AppButton(
+            label: tr('settings.reset'),
+            icon: Icons.delete_forever_rounded,
+            kind: AppButtonKind.danger,
+            onPressed: () => _factoryReset(context, st),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  Future<void> _factoryReset(BuildContext context, AppState st) async {
+    final ok = await confirmDialog(context,
+      title: tr('settings.reset'),
+      body: tr('settings.resetWarn'),
+      confirmLabel: tr('delete'),
+      danger: true,
+    );
+    if (!ok || !mounted) return;
+
+    final wantBackup = await confirmDialog(context,
+      title: tr('areYouSure'),
+      body: tr('settings.resetBackupAsk'),
+      confirmLabel: tr('yes'),
+      danger: false,
+    );
+    if (wantBackup) {
+      final stamp = DateTime.now().toIso8601String().replaceAll(':', '-').substring(0, 19);
+      final location = await getSaveLocation(
+        suggestedName: 'dzbp_last_backup_$stamp.db',
+        acceptedTypeGroups: [const XTypeGroup(label: 'SQLite', extensions: ['db'])],
+      );
+      if (location == null || !mounted) return;
+      await AppDatabase.backupFile(AppDatabase.instance.db, location.path);
+    }
+
+    await st.factoryReset();
   }
 
   // ------------------------------------------------------------------- audit --

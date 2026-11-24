@@ -230,6 +230,10 @@ const ar = <String, String>{
   'settings.auditHint': 'آخر العمليات المسجلة في قاعدة البيانات.',
   'settings.auditEmpty': 'لا توجد عمليات مسجلة بعد.',
   'settings.dbPath': 'مسار قاعدة البيانات',
+  'settings.reset': 'إعادة تعيين المصنع', 'settings.resetHint': 'حذف كل شيء لبيع البرنامج لشخص آخر',
+  'settings.resetWarn': 'سيتم حذف كل شيء نهائياً: المنتجات، المخزون، العملاء والموزّعون، الفواتير، المشتريات، المصاريف، الصندوق، سجل التدقيق وكل النسخ الاحتياطية. لا يمكن الرجوع أبداً. هل أنت متأكد؟',
+  'settings.resetBackupAsk': 'هل تريد حفظ نسخة احتياطية أخيرة قبل حذف كل شيء؟ (مستحسن)',
+  'settings.resetDone': 'تم حذف كل شيء. أعد إعداد نشاطك من البداية',
 
 };
 
@@ -461,6 +465,10 @@ const fr = <String, String>{
   'settings.auditHint': 'Dernières opérations enregistrées en base.',
   'settings.auditEmpty': 'Aucune opération enregistrée.',
   'settings.dbPath': 'Chemin de la base',
+  'settings.reset': 'Réinitialisation usine', 'settings.resetHint': 'Tout supprimer pour revendre le logiciel à un autre propriétaire',
+  'settings.resetWarn': 'Toutes les données seront définitivement supprimées : produits, stock, clients et fournisseurs, factures, achats, dépenses, caisse, journal d’audit et toutes les sauvegardes. Impossible de revenir en arrière. Êtes-vous sûr ?',
+  'settings.resetBackupAsk': 'Voulez-vous faire une dernière sauvegarde avant de tout supprimer ? (recommandé)',
+  'settings.resetDone': 'Tout a été supprimé. Recréez la configuration de votre commerce',
 
 };
 

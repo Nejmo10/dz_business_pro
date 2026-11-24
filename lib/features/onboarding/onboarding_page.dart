@@ -87,7 +87,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 27),
               ),
               const SizedBox(width: 14),
-              const Text('DzBusiness Pro', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+              const Expanded(
+                child: Text('DzBusiness Pro', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
             ]),
             const Spacer(),
             Text(tr('onb.welcome'),
@@ -112,12 +114,16 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     child: Icon(done ? Icons.check : Icons.circle, size: done ? 16 : 5, color: C.primary),
                   ),
                   const SizedBox(width: 12),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(steps[i].$1,
-                        style: TextStyle(color: Colors.white, fontWeight: active ? FontWeight.w700 : FontWeight.w500, fontSize: 13.5)),
-                    Text(steps[i].$2,
-                        style: TextStyle(color: Colors.white.withValues(alpha: .65), fontSize: 11.5)),
-                  ]),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(steps[i].$1,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.white, fontWeight: active ? FontWeight.w700 : FontWeight.w500, fontSize: 13.5)),
+                      Text(steps[i].$2,
+                          maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.white.withValues(alpha: .65), fontSize: 11.5)),
+                    ]),
+                  ),
                 ]),
               );
             }),

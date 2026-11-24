@@ -634,14 +634,19 @@ class TableX extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final flex = widths.map((w) => w.toInt()).toList();
-    return Container(
-      constraints: minHeight > 0 ? BoxConstraints(minHeight: minHeight) : null,
+    return LayoutBuilder(builder: (context, cons) {
+      // Inside an unbounded parent (e.g. a page-level SingleChildScrollView a
+      // table must shrink-wrap; Expanded there would throw.
+      final unbounded = !cons.maxHeight.isFinite;
+      final shrink = minHeight > 0 || unbounded;
+      return Container(
+      constraints: (minHeight > 0 && !unbounded) ? BoxConstraints(minHeight: minHeight) : null,
       decoration: BoxDecoration(
         color: C.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: C.border),
       ),
-      child: Column(children: [
+      child: Column(mainAxisSize: unbounded ? MainAxisSize.min : MainAxisSize.max, children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           decoration: const BoxDecoration(
@@ -654,9 +659,10 @@ class TableX extends StatelessWidget {
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: C.textSecondary)))]),
         ),
         Divider(height: 1, color: C.border.withValues(alpha: .7)),
-        Expanded(
-          child: ListView.builder(
-            shrinkWrap: minHeight > 0,
+        unbounded
+          ? Flexible(
+              child: ListView.builder(
+            shrinkWrap: shrink,
             itemCount: rows.length,
             itemBuilder: (_, r) {
               final cell = <Widget>[];
@@ -672,9 +678,29 @@ class TableX extends StatelessWidget {
                   ));
             },
           ),
-        ),
+            )
+          : Expanded(
+              child: ListView.builder(
+                shrinkWrap: shrink,
+                itemCount: rows.length,
+                itemBuilder: (_, r) {
+                  final cell = <Widget>[];
+                  for (var i = 0; i < rows[r].length; i++) {
+                    cell.add(Expanded(flex: flex[i], child: Align(
+                        alignment: AlignmentDirectional.centerStart, child: rows[r][i])));
+                  }
+                  return _RowHover(
+                      divider: r < rows.length - 1,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        child: Row(children: cell),
+                      ));
+                },
+              ),
+            ),
       ]),
-    );
+      );
+    });
   }
 }
 
