@@ -12,7 +12,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   Database? _db;
-  static const int version = 1;
+  static const int version = 2;
 
   /// Opens (creating or migrating) the database at [path].
   /// If [path] is the in-memory path, runs entirely in RAM (used by tests).

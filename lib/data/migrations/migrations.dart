@@ -4,7 +4,17 @@ import 'package:sqflite_common/sqlite_api.dart';
 /// CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS, so replaying a
 /// version never destroys user data.
 class Migrations {
-  static const Map<int, List<String>> _scripts = <int, List<String>>{};
+  static const Map<int, List<String>> _scripts = <int, List<String>>{
+    2: [
+      "ALTER TABLE products ADD COLUMN unit TEXT NOT NULL DEFAULT 'piece'",
+      'ALTER TABLE products ADD COLUMN units_per_box INTEGER NOT NULL DEFAULT 1',
+      'ALTER TABLE customers ADD COLUMN loyalty_points INTEGER NOT NULL DEFAULT 0',
+      "ALTER TABLE cash_registers ADD COLUMN name TEXT NOT NULL DEFAULT ''",
+      "ALTER TABLE cash_registers ADD COLUMN kind TEXT NOT NULL DEFAULT 'cash'",
+      _checks,
+      _advances,
+    ],
+  };
 
   static List<String> get createScript => [
     _settings,
@@ -29,6 +39,8 @@ class Migrations {
     _cashRegisters,
     _cashMovements,
     _auditLogs,
+    _checks,
+    _advances,
   ];
 
   static const String _settings = '''
@@ -106,6 +118,8 @@ class Migrations {
     cost_c INTEGER NOT NULL DEFAULT 0,
     price_c INTEGER NOT NULL DEFAULT 0,
     wholesale_c INTEGER NOT NULL DEFAULT 0,
+    unit TEXT NOT NULL DEFAULT 'piece',
+    units_per_box INTEGER NOT NULL DEFAULT 1,
     stock_qty INTEGER NOT NULL DEFAULT 0,
     min_stock INTEGER NOT NULL DEFAULT 0,
     max_stock INTEGER NOT NULL DEFAULT 0,
@@ -128,6 +142,7 @@ class Migrations {
     type TEXT NOT NULL DEFAULT 'retail',
     credit_limit_c INTEGER NOT NULL DEFAULT 0,
     balance_c INTEGER NOT NULL DEFAULT 0,
+    loyalty_points INTEGER NOT NULL DEFAULT 0,
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL
   )''';
@@ -285,6 +300,8 @@ class Migrations {
   static const String _cashRegisters = '''
   CREATE TABLE IF NOT EXISTS cash_registers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL DEFAULT 'cash',
     opened_at TEXT NOT NULL,
     closed_at TEXT,
     opening_c INTEGER NOT NULL DEFAULT 0,
@@ -292,6 +309,35 @@ class Migrations {
     counted_c INTEGER,
     diff_c INTEGER,
     status TEXT NOT NULL DEFAULT 'open'
+  )''';
+
+  static const String _checks = '''
+  CREATE TABLE IF NOT EXISTS checks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction TEXT NOT NULL,
+    party TEXT NOT NULL DEFAULT '',
+    amount_c INTEGER NOT NULL DEFAULT 0,
+    check_no TEXT,
+    bank TEXT,
+    issued_at TEXT NOT NULL,
+    due_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    register_id INTEGER REFERENCES cash_registers(id) ON DELETE SET NULL,
+    notes TEXT,
+    created_at TEXT NOT NULL
+  )''';
+
+  static const String _advances = '''
+  CREATE TABLE IF NOT EXISTS advances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee TEXT NOT NULL,
+    amount_c INTEGER NOT NULL,
+    settled_c INTEGER NOT NULL DEFAULT 0,
+    taken_at TEXT NOT NULL,
+    settled_at TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    notes TEXT,
+    created_at TEXT NOT NULL
   )''';
 
   static const String _cashMovements = '''
@@ -335,6 +381,7 @@ class Migrations {
     'CREATE INDEX IF NOT EXISTS idx_returns_sale ON returns(sale_id)',
     'CREATE INDEX IF NOT EXISTS idx_cash_mov_register ON cash_movements(register_id)',
     'CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_logs(logged_at)',
+    'CREATE INDEX IF NOT EXISTS idx_checks_due ON checks(due_date)',
   ];
 
   static const Map<int, List<String>> seedScript = {
@@ -361,11 +408,18 @@ class Migrations {
       for (final stmt in indexScript) {
         await tx.execute(stmt);
       }
-      for (final stmt in seedScript[version] ?? const <String>[]) {
+      for (final stmt in seedFor(version)) {
         await tx.execute(stmt);
       }
     });
   }
+
+  /// Seed rows for every version <= [version] (INSERT OR IGNORE: safe to
+  /// replay, so fresh installs at a higher version still get earlier seeds).
+  static List<String> seedFor(int version) => [
+    for (final e in seedScript.entries)
+      if (e.key <= version) ...e.value,
+  ];
 
   /// Applies forward migrations from [from] (old version) to [to].
   static Future<void> migrate(Database db, int from, int to) async {
@@ -390,7 +444,7 @@ class Migrations {
       'expense_categories', 'products', 'customers', 'suppliers', 'sales',
       'sale_items', 'purchases', 'purchase_items', 'returns', 'return_items',
       'invoices', 'payments', 'expenses', 'stock_movements', 'cash_registers',
-      'cash_movements', 'audit_logs',
+      'cash_movements', 'audit_logs', 'checks', 'advances',
     };
     final missing = required.difference(present);
     if (missing.isNotEmpty) {

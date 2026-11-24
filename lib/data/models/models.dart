@@ -78,6 +78,8 @@ class Product {
     this.costC = 0,
     this.priceC = 0,
     this.wholesaleC = 0,
+    this.unit = 'piece',
+    this.unitsPerBox = 1,
     this.stockQty = 0,
     this.minStock = 0,
     this.maxStock = 0,
@@ -92,6 +94,8 @@ class Product {
   int id, costC, priceC, wholesaleC, stockQty, minStock, maxStock;
   int? categoryId, brandId, supplierId;
   String nameAr, nameFr, sku, barcode, description, createdAt, updatedAt;
+  String unit;
+  int unitsPerBox;
   String? imagePath, categoryName;
   bool archived;
 
@@ -109,6 +113,8 @@ class Product {
         costC: r['cost_c'] as int? ?? 0,
         priceC: r['price_c'] as int? ?? 0,
         wholesaleC: r['wholesale_c'] as int? ?? 0,
+        unit: r['unit'] as String? ?? 'piece',
+        unitsPerBox: r['units_per_box'] as int? ?? 1,
         stockQty: r['stock_qty'] as int? ?? 0,
         minStock: r['min_stock'] as int? ?? 0,
         maxStock: r['max_stock'] as int? ?? 0,
@@ -133,11 +139,12 @@ class Customer {
     this.type = 'retail',
     this.creditLimitC = 0,
     this.balanceC = 0,
+    this.loyaltyPoints = 0,
     this.active = true,
     this.createdAt = '',
   });
 
-  int id, creditLimitC, balanceC;
+  int id, creditLimitC, balanceC, loyaltyPoints;
   String nameAr, nameFr, phone, email, address, notes, type, createdAt;
   bool active;
 
@@ -154,6 +161,7 @@ class Customer {
         type: r['type'] as String? ?? 'retail',
         creditLimitC: r['credit_limit_c'] as int? ?? 0,
         balanceC: r['balance_c'] as int? ?? 0,
+        loyaltyPoints: r['loyalty_points'] as int? ?? 0,
         active: (r['active'] as int? ?? 1) == 1,
         createdAt: r['created_at'] as String? ?? '',
       );
@@ -369,15 +377,17 @@ class StockMovement {
 }
 
 class CashRegister {
-  CashRegister({this.id = 0, this.openedAt = '', this.closedAt, this.openingC = 0, this.closingC, this.countedC, this.diffC, this.status = 'open'});
+  CashRegister({this.id = 0, this.name = '', this.kind = 'cash', this.openedAt = '', this.closedAt, this.openingC = 0, this.closingC, this.countedC, this.diffC, this.status = 'open'});
   int id, openingC;
-  String openedAt;
+  String name, kind, openedAt;
   String? closedAt;
   int? closingC, countedC, diffC;
   String status;
 
   static CashRegister fromRow(Map<String, Object?> r) => CashRegister(
         id: r['id'] as int,
+        name: r['name'] as String? ?? '',
+        kind: r['kind'] as String? ?? 'cash',
         openedAt: r['opened_at'] as String,
         closedAt: r['closed_at'] as String?,
         openingC: r['opening_c'] as int? ?? 0,
@@ -426,4 +436,41 @@ class ReturnRec {
   int id, saleId, totalC, refundedC;
   int? customerId;
   String returnNo, returnAt, reason;
+}
+
+class CheckRec {
+  CheckRec({this.id = 0, this.direction = 'received', this.party = '', this.amountC = 0, this.checkNo = '', this.bank = '', this.issuedAt = '', this.dueDate = '', this.status = 'pending', this.notes = ''});
+  int id, amountC;
+  String direction, party, checkNo, bank, issuedAt, dueDate, status, notes;
+
+  static CheckRec fromRow(Map<String, Object?> r) => CheckRec(
+        id: r['id'] as int,
+        direction: r['direction'] as String? ?? 'received',
+        party: r['party'] as String? ?? '',
+        amountC: r['amount_c'] as int? ?? 0,
+        checkNo: r['check_no'] as String? ?? '',
+        bank: r['bank'] as String? ?? '',
+        issuedAt: r['issued_at'] as String? ?? '',
+        dueDate: r['due_date'] as String? ?? '',
+        status: r['status'] as String? ?? 'pending',
+        notes: r['notes'] as String? ?? '',
+      );
+}
+
+class AdvanceRec {
+  AdvanceRec({this.id = 0, this.employee = '', this.amountC = 0, this.settledC = 0, this.takenAt = '', this.settledAt, this.status = 'open', this.notes = ''});
+  int id, amountC, settledC;
+  String employee, takenAt, status, notes;
+  String? settledAt;
+
+  static AdvanceRec fromRow(Map<String, Object?> r) => AdvanceRec(
+        id: r['id'] as int,
+        employee: r['employee'] as String? ?? '',
+        amountC: r['amount_c'] as int? ?? 0,
+        settledC: r['settled_c'] as int? ?? 0,
+        takenAt: r['taken_at'] as String? ?? '',
+        settledAt: r['settled_at'] as String?,
+        status: r['status'] as String? ?? 'open',
+        notes: r['notes'] as String? ?? '',
+      );
 }

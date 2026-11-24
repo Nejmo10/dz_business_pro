@@ -21,6 +21,8 @@ class _InventoryPageState extends State<InventoryPage> {
   int stockValue = 0, units = 0, lowCount = 0, productCount = 0, outCount = 0;
   List<Product> lowProducts = [];
   List<StockMovement> movements = [];
+  List<Map<String, Object?>> assist = [];
+  String assistHint = '';
 
   @override
   void didChangeDependencies() {
@@ -41,6 +43,7 @@ class _InventoryPageState extends State<InventoryPage> {
       st.catalog.products(onlyLowStock: true, includeArchived: true),
       st.inventory.movements(limit: 150),
       st.inventory.outCount(),
+      st.analytics.stockAssist(),
     ]);
     if (!mounted) return;
     setState(() {
@@ -51,6 +54,8 @@ class _InventoryPageState extends State<InventoryPage> {
       lowProducts = res[4] as List<Product>;
       movements = res[5] as List<StockMovement>;
       outCount = res[6] as int;
+      assist = res[7] as List<Map<String, Object?>>;
+      assistHint = _computeAssistHint(assist);
       loading = false;
       loadError = null;
     });
@@ -58,6 +63,42 @@ class _InventoryPageState extends State<InventoryPage> {
       if (!mounted) return;
       setState(() { loading = false; loadError = '$e'; });
     }
+  }
+
+  String _computeAssistHint(List<Map<String, Object?>> rows) {
+    if (rows.isEmpty) return '';
+    final soonParts = <String>[];
+    final slowParts = <String>[];
+    for (final r in rows) {
+      final arNameRaw = r['name_ar'] as String? ?? '';
+      final frNameRaw = r['name_fr'] as String? ?? '';
+      final n = (gIsArabic && arNameRaw.isNotEmpty) ? arNameRaw : frNameRaw;
+      final name = n.isNotEmpty ? n : '?';
+      final stock = (r['stock'] as int?) ?? 0;
+      final sold30 = (r['sold30'] as int?) ?? 0;
+      final lastSale = r['last_sale'] as String?;
+      final velocity = sold30 / 30.0;
+      if (velocity > 0) {
+        final daysLeft = (stock / velocity).floor();
+        if (daysLeft <= 14 && stock > 0) {
+          final reorder = (velocity * 14).ceil() - stock;
+          soonParts.add('$name ($daysLeft ${tr('inv.days')}) +${reorder > 0 ? reorder : 1}');
+        }
+      } else if (stock > 0 && (lastSale == null || lastSale.isEmpty)) {
+        slowParts.add(name);
+      } else if (stock > 0 && lastSale != null && lastSale.isNotEmpty) {
+        final days = DateTime.now().difference(DateTime.parse(lastSale)).inDays;
+        if (days >= 30) slowParts.add(name);
+      }
+    }
+    final out = <String>[];
+    if (soonParts.isNotEmpty) {
+      out.add('${tr('inv.stockoutSoon')}: ${soonParts.take(5).join(' · ')}');
+    }
+    if (slowParts.isNotEmpty) {
+      out.add('${tr('inv.slow')}: ${slowParts.take(5).join(' · ')}${slowParts.length > 5 ? '…' : ''}');
+    }
+    return out.join('   •   ');
   }
 
   @override
@@ -104,6 +145,23 @@ class _InventoryPageState extends State<InventoryPage> {
             ),
           ),
         ),
+      if (assistHint.isNotEmpty)
+        Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: C.accent.withValues(alpha: .07),
+                border: Border.all(color: C.accent.withValues(alpha: .4)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(children: [
+                const Icon(Icons.auto_awesome_rounded, size: 17, color: C.accent),
+                const SizedBox(width: 9),
+                Expanded(child: Text(assistHint, style: const TextStyle(fontSize: 12.5, color: C.textPrimary, height: 1.5))),
+              ]),
+            ),
+          ),
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())

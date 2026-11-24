@@ -61,8 +61,8 @@ class _CustomersPageState extends State<CustomersPage> {
                 ? EmptyStateX(title: tr('cust.none'), body: tr('cust.noneHint'), icon: Icons.people_outline,
                     action: AppButton(label: tr('add'), icon: Icons.add, onPressed: () => _edit(context, null)))
                 : TableX(
-                    columns: [tr('name'), tr('phone'), tr('cust.type'), tr('cust.creditLimit'), tr('cust.balance'), tr('actions')],
-                    widths: [3, 2, 1, 2, 2, 2],
+                    columns: [tr('name'), tr('phone'), tr('cust.type'), tr('cust.creditLimit'), tr('cust.balance'), tr('cust.loyalty'), tr('actions')],
+                    widths: [3, 2, 1, 2, 2, 2, 2],
                     rows: [for (final c in customers) _row(context, c)],
                   ),
       ),
@@ -79,6 +79,13 @@ class _CustomersPageState extends State<CustomersPage> {
       Text(c.type == 'wholesale' ? tr('cust.wholesale') : tr('cust.retail'), style: const TextStyle(fontSize: 12)),
       Text(c.creditLimitC == 0 ? '—' : Money.fmt(c.creditLimitC), style: const TextStyle(fontSize: 12)),
       Text(Money.fmt(c.balanceC), style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.balanceC > 0 ? C.danger : C.success)),
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: BadgeX(
+          text: '${_tierLabel(c.loyaltyPoints)} ${c.loyaltyPoints}',
+          color: _tierColor(c.loyaltyPoints),
+        ),
+      ),
       Row(children: [
         IconButtonX(icon: Icons.receipt_long_outlined, size: 30, tooltip: tr('cust.statement'), onPressed: () => _statement(context, c)),
         IconButtonX(icon: Icons.payments_outlined, size: 30, color: C.success, tooltip: tr('payment.addPayment'), onPressed: () => _payment(context, c)),
@@ -86,6 +93,18 @@ class _CustomersPageState extends State<CustomersPage> {
         IconButtonX(icon: Icons.delete_outline, size: 30, color: C.danger, tooltip: tr('delete'), onPressed: () => _delete(context, c)),
       ]),
     ];
+  }
+
+  String _tierLabel(int points) {
+    if (points >= 500) return tr('tier.gold');
+    if (points >= 200) return tr('tier.silver');
+    return tr('tier.normal');
+  }
+
+  Color _tierColor(int points) {
+    if (points >= 500) return const Color(0xFFC9971C);
+    if (points >= 200) return const Color(0xFF8892A6);
+    return C.textSecondary;
   }
 
   Future<void> _delete(BuildContext context, Customer c) async {
@@ -222,6 +241,8 @@ class _CustomersPageState extends State<CustomersPage> {
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(tr('cust.balance'), style: const TextStyle(fontSize: 11, color: C.textSecondary)),
               Text(Money.fmt(balance), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: balance > 0 ? C.danger : C.success)),
+              const SizedBox(height: 4),
+              BadgeX(text: '${tr('cust.loyalty')}: ${c.loyaltyPoints}', color: _tierColor(c.loyaltyPoints)),
             ]),
           ]),
         ),

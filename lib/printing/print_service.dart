@@ -325,6 +325,91 @@ class PrintService {
     return doc.save();
   }
 
+  // ------------------------------------------------------- delivery note (A4)
+  /// Bon de livraison: quantities and products only — no prices, no totals.
+  Future<Uint8List> deliveryNote(Sale sale, List<SaleItem> items) async {
+    await ensureFonts();
+    await _cacheCustomers([sale]);
+    final doc = pw.Document();
+    String t(String k) => _fix(tr(k));
+    doc.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(36),
+      theme: pw.ThemeData.withFont(base: _font!, bold: _bold!),
+      build: (ctx) => [
+        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+          pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Expanded(child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+              pw.Text(_fix(profile.name), style: _st(size: 16, bold: true)),
+              if (profile.address.isNotEmpty) pw.Text(_fix(profile.address), style: _st(size: 9)),
+              if (profile.phone.isNotEmpty) pw.Text(_fix('${tr('phone')}: ${profile.phone}'), style: _st(size: 9)),
+            ])),
+            pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: pw.BoxDecoration(
+                    color: PdfColor.fromInt(0xFF16A879), borderRadius: pw.BorderRadius.circular(8)),
+                child: pw.Text(t('bl.title'), style: _st(size: 13, bold: true, color: PdfColors.white)),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Text('${t('inv.no')}: ${sale.invoiceNo}', style: _st(size: 10, bold: true)),
+              pw.Text(_fix('${t('date')}: ${sale.saleAt}'), style: _st(size: 9)),
+            ]),
+          ]),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColor.fromInt(0xFFE8EDF5)),
+              borderRadius: pw.BorderRadius.circular(8),
+              color: PdfColor.fromInt(0xFFF5F7FC),
+            ),
+            child: pw.Row(children: [
+              pw.Text('${t('customer')}: ', style: _st(size: 10, bold: true)),
+              pw.Text(_fix(_customerName(sale.customerId)), style: _st(size: 10)),
+            ]),
+          ),
+          pw.SizedBox(height: 14),
+          pw.TableHelper.fromTextArray(
+            headerStyle: _st(size: 9.5, bold: true, color: PdfColors.white),
+            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF16A879)),
+            cellStyle: _st(size: 9.5),
+            border: pw.TableBorder.all(color: PdfColor.fromInt(0xFFE8EDF5), width: .5),
+            headers: [t('name'), t('qty'), t('bl.note')],
+            data: [
+              for (final it in items) [_fix(_itemName(it)), '${it.qty}', ''],
+            ],
+          ),
+          pw.SizedBox(height: 40),
+          pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+            pw.Column(children: [
+              pw.Text(t('bl.signature'), style: _st(size: 9)),
+              pw.SizedBox(height: 34),
+              pw.Container(width: 150, height: .8, color: PdfColor.fromInt(0xFF7B879C)),
+            ]),
+            pw.Column(children: [
+              pw.Text(t('bl.receiver'), style: _st(size: 9)),
+              pw.SizedBox(height: 34),
+              pw.Container(width: 150, height: .8, color: PdfColor.fromInt(0xFF7B879C)),
+            ]),
+          ]),
+          pw.Spacer(),
+          pw.Container(
+            alignment: pw.Alignment.center,
+            padding: const pw.EdgeInsets.only(top: 12),
+            child: pw.Text(_fix('${profile.name} — ${tr('app.title')}'),
+                style: _st(size: 8, color: PdfColor.fromInt(0xFF7B879C))),
+          ),
+        ])
+      ],
+    ));
+    return doc.save();
+  }
+
+  Future<void> printDeliveryNote(Sale sale, List<SaleItem> items) async {
+    await printBytes(await deliveryNote(sale, items));
+  }
+
   // ------------------------------------------------------------------ outputs
   Future<void> printBytes(Uint8List bytes, {PdfPageFormat? format, bool usePrinter = false}) async {
     await ensureFonts();

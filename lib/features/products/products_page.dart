@@ -194,6 +194,7 @@ class _ProductsPageState extends State<ProductsPage> {
           Wrap(spacing: 22, runSpacing: 10, children: [
             _kv(tr('sku'), p.sku), _kv(tr('barcode'), p.barcode), _kv(tr('cost'), Money.fmt(p.costC)),
             _kv(tr('price'), Money.fmt(p.priceC)), _kv(tr('wholesale'), Money.fmt(p.wholesaleC)),
+            _kv(tr('unit'), tr('unit.${p.unit}')), _kv(tr('unitsPerBox'), '${p.unitsPerBox}'),
             _kv(tr('pos.stock'), '${p.stockQty}'), _kv(tr('sold'), '$sold'),
           ]),
           const SizedBox(height: 14),
@@ -349,6 +350,8 @@ class _ProductEditorState extends State<ProductEditor> {
   int? brandId;
   int? supplierId;
   String? imagePath;
+  String unit = 'piece';
+  late final _unitsPerBox = TextEditingController(text: '${widget.product?.unitsPerBox ?? 1}');
   bool saving = false;
 
   @override
@@ -360,6 +363,7 @@ class _ProductEditorState extends State<ProductEditor> {
       brandId = prod.brandId;
       supplierId = prod.supplierId;
       imagePath = prod.imagePath;
+      unit = prod.unit;
     }
   }
 
@@ -390,6 +394,7 @@ class _ProductEditorState extends State<ProductEditor> {
       categoryId: categoryId, brandId: brandId, supplierId: supplierId,
       costC: Money.fromString(_cost.text), priceC: Money.fromString(_price.text),
       wholesaleC: Money.fromString(_wholesale.text),
+      unit: unit, unitsPerBox: int.tryParse(_unitsPerBox.text) ?? 1,
       stockQty: int.tryParse(_stock.text) ?? 0,
       minStock: int.tryParse(_minStock.text) ?? 0,
       maxStock: int.tryParse(_maxStock.text) ?? 0,
@@ -465,6 +470,20 @@ class _ProductEditorState extends State<ProductEditor> {
                     Expanded(child: FieldX(controller: _price, label: tr('price'), keyboardType: const TextInputType.numberWithOptions(decimal: true))),
                     const SizedBox(width: 10),
                     Expanded(child: FieldX(controller: _wholesale, label: tr('wholesale'), keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+                  ]),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(
+                      child: SmartDropdown<String>(
+                        items: const ['piece', 'box', 'carton', 'kg', 'liter'],
+                        value: unit,
+                        display: (u) => tr('unit.$u'),
+                        onChanged: (v) => setState(() => unit = v ?? 'piece'),
+                        label: tr('unit'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: FieldX(controller: _unitsPerBox, label: tr('unitsPerBox'), keyboardType: TextInputType.number)),
                   ]),
                   const SizedBox(height: 10),
                   Row(children: [

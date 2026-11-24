@@ -15,7 +15,7 @@ class Money {
     return (num * centsPerUnit).round();
   }
 
-  static String fmt(int minor, {String symbol = ' DZD', String locale = 'fr'}) {
+  static String fmt(int minor, {String symbol = ' DA', String locale = 'fr'}) {
     final nf = NumberFormat.decimalPatternDigits(locale: locale == 'ar' ? 'ar_DZ' : 'fr_DZ', decimalDigits: 2);
     final sign = minor < 0 ? '-' : '';
     return '$sign${nf.format(minor.abs() / centsPerUnit)}$symbol';

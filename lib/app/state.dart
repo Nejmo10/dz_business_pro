@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../data/database/app_database.dart';
 import '../data/repositories/repositories.dart';
+import '../data/repositories/users_repo.dart';
 import '../core/money.dart';
 import '../data/models/models.dart';
 
@@ -24,11 +25,20 @@ class AppState extends ChangeNotifier {
   late final ExpensesRepo expenses = ExpensesRepo(database);
   late final CashRepo cash = CashRepo(database);
   late final AnalyticsRepo analytics = AnalyticsRepo(database);
+  late final UsersRepo users = UsersRepo(database);
+  late final ChecksRepo checks = ChecksRepo(database);
+  late final AdvancesRepo advances = AdvancesRepo(database);
 
   BusinessProfile profile = BusinessProfile();
   bool onboardingDone = false;
   String dbPath = '';
   Future<void>? bootstrapFuture;
+
+  /// Currently logged-in user (null = boss/single-user mode).
+  User? sessionUser;
+  bool usersEnabled = false;
+  bool darkMode = false;
+  double fontScale = 1.0;
 
   /// Test hook: when set, [bootstrap] resolves the app-support directory from
   /// here instead of the path_provider plugin (unavailable in widget tests).
@@ -53,6 +63,21 @@ class AppState extends ChangeNotifier {
     if (onboardingDone) {
       profile = await settings.loadProfile();
     }
+    usersEnabled = await users.hasUsers();
+    darkMode = (await settings.get('dark_mode', '0')) == '1';
+    fontScale = double.tryParse(await settings.get('font_scale', '1.0')) ?? 1.0;
+  }
+
+  Future<void> setDarkMode(bool value) async {
+    darkMode = value;
+    await settings.set('dark_mode', value ? '1' : '0');
+    notifyListeners();
+  }
+
+  Future<void> setFontScale(double value) async {
+    fontScale = value;
+    await settings.set('font_scale', value.toStringAsFixed(2));
+    notifyListeners();
   }
 
   Future<void> completeOnboarding(BusinessProfile p) async {
@@ -97,8 +122,29 @@ class AppState extends ChangeNotifier {
     bootstrapFuture = null;
     onboardingDone = false;
     profile = BusinessProfile();
+    sessionUser = null;
+    Audit.actor = 'local';
     notifyListeners();
   }
+
+  /// Logs [u] in; every audit entry from now on is attributed to them.
+  void startSession(User u) {
+    sessionUser = u;
+    Audit.actor = u.username;
+    notifyListeners();
+  }
+
+  void endSession() {
+    sessionUser = null;
+    Audit.actor = 'local';
+    notifyListeners();
+  }
+
+  /// Role gate: manager sees everything; accountant/stock see no profits.
+  bool get canSeeProfits =>
+      sessionUser == null || sessionUser!.role == 'manager';
+
+  bool get isSeller => sessionUser?.role == 'seller';
 
   /// Re-runs [bootstrap] on the next root rebuild (after a bootstrap error).
   void retryBootstrap() {

@@ -16,6 +16,7 @@ import 'purchases/purchases_page.dart';
 import 'reports/reports_page.dart';
 import 'settings/settings_page.dart';
 import 'suppliers/suppliers_page.dart';
+import 'tools/tools_page.dart';
 import '../data/models/models.dart';
 
 /// Main application shell: collapsible sidebar + premium top bar + workspace.
@@ -47,6 +48,7 @@ class _HomeShellState extends State<HomeShell> {
       FinancePage(),
       ReportsPage(),
       SettingsPage(),
+      ToolsPage(),
     ];
     final groups = _NavGroups();
     return Scaffold(
@@ -288,10 +290,15 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Widget _notifications() {
-    return FutureBuilder<int>(
-      future: widget.state.inventory.lowStockCount(),
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        widget.state.inventory.lowStockCount(),
+        widget.state.checks.dueOrOverdue(),
+      ]),
       builder: (_, snap) {
-        final count = snap.data ?? 0;
+        final lowCount = snap.data?[0] as int? ?? 0;
+        final dueChecks = snap.data?[1] as List? ?? const [];
+        final count = lowCount + dueChecks.length;
         return PopupMenuButton<String>(
           tooltip: tr('notifications'),
           icon: Stack(children: [
@@ -307,27 +314,37 @@ class _HomeShellState extends State<HomeShell> {
               ),
           ]),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          onSelected: (v) { if (v == 'low') _go(4); },
+          onSelected: (v) { if (v == 'low') _go(4); if (v == 'checks') _go(10); },
           itemBuilder: (_) => [
-            if (count == 0)
-              const PopupMenuItem(enabled: false, child: SizedBox(width: 1, height: 1)),
-            if (count > 0)
-              PopupMenuItem(
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  leading: const Icon(Icons.warning_amber_rounded, color: C.warning, size: 20),
-                  title: Text('${tr('kpi.lowStock')} : $count', style: const TextStyle(fontSize: 13)),
-                ),
-              )
-            else
-              const PopupMenuItem(
-                enabled: false,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: SizedBox(),
-                ),
+            PopupMenuItem(
+              enabled: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Text(tr('notifications'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: C.textSecondary)),
               ),
+            ),
+            PopupMenuItem(
+              value: lowCount > 0 ? 'low' : null,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: Icon(Icons.warning_amber_rounded, color: lowCount > 0 ? C.warning : C.success, size: 20),
+                title: Text(lowCount > 0
+                    ? '${tr('kpi.lowStock')} : $lowCount'
+                    : tr('notif.none'), style: const TextStyle(fontSize: 13)),
+              ),
+            ),
+            PopupMenuItem(
+              value: dueChecks.isNotEmpty ? 'checks' : null,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: Icon(Icons.event_repeat_rounded, color: dueChecks.isNotEmpty ? C.secondary : C.success, size: 20),
+                title: Text(dueChecks.isNotEmpty
+                    ? '${tr('notif.checksDue')} : ${dueChecks.length}'
+                    : tr('notif.checksNone'), style: const TextStyle(fontSize: 13)),
+              ),
+            ),
           ],
         );
       },
@@ -416,6 +433,7 @@ class _NavGroups {
           'invoices' => Icons.description_rounded,
           'finance' => Icons.account_balance_rounded,
           'reports' => Icons.assessment_rounded,
+          'tools' => Icons.build_circle_rounded,
           _ => Icons.settings_rounded,
         };
 
@@ -443,12 +461,15 @@ class _NavGroups {
         it('expenses', 'mod.expenses', 8),
         it('reports', 'mod.reports', 11),
       ]),
-      _NavGroup('nav.system', [it('settings', 'mod.settings', 12)]),
+      _NavGroup('nav.system', [
+        it('tools', 'mod.tools', 13),
+        it('settings', 'mod.settings', 12),
+      ]),
     ];
     moduleKeys = [
       'mod.dashboard', 'mod.pos', 'mod.products', 'mod.categories', 'mod.inventory',
       'mod.customers', 'mod.suppliers', 'mod.purchases', 'mod.expenses',
-      'mod.invoices', 'mod.finance', 'mod.reports', 'mod.settings',
+      'mod.invoices', 'mod.finance', 'mod.reports', 'mod.settings', 'mod.tools',
     ];
   }
 }

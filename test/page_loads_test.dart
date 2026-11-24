@@ -220,7 +220,14 @@ void main() {
 
     final regId = await cash.open(10000);
     expect(regId > 0, true);
-    expect(await cash.expectedCash(regId), -10000, reason: 'opening 10000 minus the 20000 cash expense recorded as an out movement');
+    expect(await cash.expectedCash(regId), 40000,
+        reason: 'opening 10000 + 100000 cash received - 50000 paid to supplier - 20000 cash expense');
+
+    final bank = await cash.open(250000, kind: 'bank', name: 'Compte CPA');
+    expect(bank > 0, true);
+    await cash.transfer(fromId: regId, toId: bank, amountC: 30000, reason: 'deposit');
+    expect(await cash.expectedCash(bank), 280000, reason: '250000 opening + 30000 transfer in');
+    expect(await cash.expectedCash(regId), 10000, reason: '40000 - 30000 transferred out');
 
     await pageWaits(database, seeded: true);
   });

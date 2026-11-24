@@ -22,6 +22,7 @@ class _DashboardPageState extends State<DashboardPage> {
   int _range = 30;
   bool _loaded = false;
   bool _subscribed = false;
+  bool showProfits = true;
   String? _error;
   int revenue = 0, salesCount = 0, gross = 0, net = 0, expenses = 0;
   int products = 0, lowStock = 0, custDebt = 0, supDebt = 0, stockValue = 0;
@@ -84,6 +85,7 @@ class _DashboardPageState extends State<DashboardPage> {
     ]);
     if (!mounted) return;
     setState(() {
+      showProfits = st.canSeeProfits;
       revenue = r[0] as int;
       salesCount = r[1] as int;
       gross = r[2] as int;
@@ -134,10 +136,12 @@ class _DashboardPageState extends State<DashboardPage> {
             const SizedBox(width: 12),
             Expanded(child: KpiCard(title: tr('kpi.totalSales'), value: Money.fmt(salesCount), icon: 'sales', color: C.secondary, subtitle: '$salesCount')),
             const SizedBox(width: 12),
-            Expanded(child: KpiCard(title: tr('kpi.grossProfit'), value: Money.fmt(gross), icon: 'profit', color: C.accent)),
-            const SizedBox(width: 12),
-            Expanded(child: KpiCard(title: tr('kpi.netProfit'), value: Money.fmt(net), icon: 'net', color: net >= 0 ? C.success : C.danger)),
-            const SizedBox(width: 12),
+            if (showProfits) ...[
+              Expanded(child: KpiCard(title: tr('kpi.grossProfit'), value: Money.fmt(gross), icon: 'profit', color: C.accent)),
+              const SizedBox(width: 12),
+              Expanded(child: KpiCard(title: tr('kpi.netProfit'), value: Money.fmt(net), icon: 'net', color: net >= 0 ? C.success : C.danger)),
+              const SizedBox(width: 12),
+            ],
             Expanded(child: KpiCard(title: tr('kpi.expenses'), value: Money.fmt(expenses), icon: 'expense', color: C.warning)),
             ]),
           ),

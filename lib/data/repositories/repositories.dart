@@ -4,6 +4,12 @@ import '../models/models.dart';
 import '../database/app_database.dart';
 import '../../core/money.dart';
 
+/// Name recorded in audit_logs for every write operation.
+/// Set by the session on login (AppState); defaults to 'local'.
+class Audit {
+  static String actor = 'local';
+}
+
 class AppException implements Exception {
   AppException(this.message);
   final String message;
@@ -84,7 +90,7 @@ class SettingsRepo {
   Future<void> audit(String action, String entity, int? entityId, String details) async {
     await db.db.insert('audit_logs', {
       'action': action, 'entity': entity, 'entity_id': entityId,
-      'details': details, 'actor': 'local', 'logged_at': Dates.iso(DateTime.now()),
+      'details': details, 'actor': Audit.actor, 'logged_at': Dates.iso(DateTime.now()),
     });
   }
 
@@ -184,6 +190,7 @@ class CatalogRepo {
       'barcode': p.barcode.isEmpty ? null : p.barcode, 'category_id': p.categoryId,
       'brand_id': p.brandId, 'supplier_id': p.supplierId, 'cost_c': p.costC,
       'price_c': p.priceC, 'wholesale_c': p.wholesaleC, 'stock_qty': p.stockQty,
+      'unit': p.unit, 'units_per_box': p.unitsPerBox,
       'min_stock': p.minStock, 'max_stock': p.maxStock, 'image_path': p.imagePath,
       'description': p.description, 'archived': p.archived ? 1 : 0, 'updated_at': now,
     };
@@ -212,7 +219,7 @@ class CatalogRepo {
         });
         await tx.insert('audit_logs', {
           'action': p.id == 0 ? 'product_create' : 'product_update', 'entity': 'products',
-          'entity_id': id, 'details': p.nameFr, 'actor': 'local', 'logged_at': now,
+          'entity_id': id, 'details': p.nameFr, 'actor': Audit.actor, 'logged_at': now,
         });
       }
       return id;
@@ -326,7 +333,7 @@ class InventoryRepo {
   Future<void> _audit(Transaction tx, String action, String entity, int? id, String details) async {
     await tx.insert('audit_logs', {
       'action': action, 'entity': entity, 'entity_id': id, 'details': details,
-      'actor': 'local', 'logged_at': Dates.iso(DateTime.now()),
+      'actor': Audit.actor, 'logged_at': Dates.iso(DateTime.now()),
     });
   }
 }
@@ -443,7 +450,7 @@ class PeopleRepo {
       await tx.insert('audit_logs', {
         'action': 'payment', 'entity': table, 'entity_id': partyId,
         'details': '${direction == 'sale' ? 'customer' : 'supplier'} payment $amountC on $paidCol ref=$refId',
-        'actor': 'local', 'logged_at': now,
+        'actor': Audit.actor, 'logged_at': now,
       });
     });
   }
@@ -579,6 +586,12 @@ class SalesRepo {
           await tx.rawUpdate('UPDATE customers SET balance_c = balance_c + ? WHERE id = ?',
               [due, customerId]);
         }
+        // Loyalty: 1 point per 100.00 DZD of the sale total.
+        final points = totals.totalC ~/ 10000;
+        if (points > 0) {
+          await tx.rawUpdate('UPDATE customers SET loyalty_points = loyalty_points + ? WHERE id = ?',
+              [points, customerId]);
+        }
       }
 
       await tx.insert('invoices', {
@@ -587,7 +600,7 @@ class SalesRepo {
       });
       await tx.insert('audit_logs', {
         'action': 'sale_create', 'entity': 'sales', 'entity_id': saleId,
-        'details': invoiceNo, 'actor': 'local', 'logged_at': now,
+        'details': invoiceNo, 'actor': Audit.actor, 'logged_at': now,
       });
       return saleId;
     });
@@ -636,7 +649,7 @@ class SalesRepo {
           where: "type='sale' AND ref_id = ?", whereArgs: [saleId]);
       await tx.insert('audit_logs', {
         'action': 'sale_cancel', 'entity': 'sales', 'entity_id': saleId,
-        'details': sale.invoiceNo, 'actor': 'local', 'logged_at': now,
+        'details': sale.invoiceNo, 'actor': Audit.actor, 'logged_at': now,
       });
     });
   }
@@ -718,7 +731,7 @@ class ReturnsRepo {
 
       await tx.insert('audit_logs', {
         'action': 'return_create', 'entity': 'returns', 'entity_id': returnId,
-        'details': '${sale.invoiceNo} $reason', 'actor': 'local', 'logged_at': now,
+        'details': '${sale.invoiceNo} $reason', 'actor': Audit.actor, 'logged_at': now,
       });
       return returnId;
     });
@@ -838,7 +851,7 @@ class PurchasesRepo {
       });
       await tx.insert('audit_logs', {
         'action': 'purchase_create', 'entity': 'purchases', 'entity_id': purchaseId,
-        'details': invoiceNo, 'actor': 'local', 'logged_at': now,
+        'details': invoiceNo, 'actor': Audit.actor, 'logged_at': now,
       });
       return purchaseId;
     });
@@ -917,48 +930,62 @@ class CashRepo {
   CashRepo(this.db);
   final AppDatabase db;
 
-  Future<CashRegister?> openRegister() async {
+  /// Payment methods accounted on a register of [kind]:
+  /// cash -> cash; bank -> card/transfer; reserve -> manual moves only.
+  static const Map<String, List<String>> kindMethods = {
+    'cash': ['cash', 'partial'],
+    'bank': ['card', 'transfer'],
+    'reserve': [],
+  };
+
+  Future<CashRegister?> openRegister({String kind = 'cash'}) async {
     final rows = await db.db.query('cash_registers',
-        where: "status = 'open'", orderBy: 'id DESC', limit: 1);
+        where: "status = 'open' AND kind = ?", whereArgs: [kind],
+        orderBy: 'id DESC', limit: 1);
     return rows.isEmpty ? null : CashRegister.fromRow(rows.first);
   }
 
-  Future<int> open(int openingC) async {
-    final existing = await openRegister();
+  /// Opens a session on a register of [kind] (cash drawer, bank account,
+  /// reserve treasury). One open register per kind.
+  Future<int> open(int openingC, {String kind = 'cash', String name = ''}) async {
+    final existing = await openRegister(kind: kind);
     if (existing != null) throw AppException('register already open');
     return db.db.insert('cash_registers', {
-      'opened_at': Dates.iso(DateTime.now()), 'opening_c': openingC, 'status': 'open',
+      'name': name, 'kind': kind, 'opened_at': Dates.iso(DateTime.now()),
+      'opening_c': openingC, 'status': 'open',
     });
   }
 
-  /// Expected cash since opening: float + cash sales receipts
-  /// + customer cash payments - cash expenses - cash purchase payments - cash refunds.
+  /// Expected balance of [registerId]: opening float + its kind's payment
+  /// methods receipts - refunds - purchase payments - expenses (cash only)
+  /// + manual moves + transfers.
   Future<int> expectedCash(int registerId) async {
     final regrows = await db.db.query('cash_registers', where: 'id = ?', whereArgs: [registerId], limit: 1);
     if (regrows.isEmpty) return 0;
     final reg = CashRegister.fromRow(regrows.first);
     final from = reg.openedAt;
-    final cashIn = firstIntValue(await db.db.rawQuery('''
-      SELECT COALESCE(SUM(p.amount_c),0) FROM payments p
-      WHERE p.kind='payment' AND p.method='cash' AND p.paid_at >= ?
-    ''', [from])) ?? 0;
-    final cashOutPay = firstIntValue(await db.db.rawQuery('''
-      SELECT COALESCE(SUM(p.amount_c),0) FROM payments p
-      WHERE p.kind='refund' AND p.method='cash' AND p.paid_at >= ?
-    ''', [from])) ?? 0;
-    final cashOutPurch = firstIntValue(await db.db.rawQuery('''
-      SELECT COALESCE(SUM(pp.amount_c),0) FROM payments pp
-      WHERE pp.kind='payment' AND pp.method='cash' AND pp.direction='purchase' AND pp.paid_at >= ?
-    ''', [from])) ?? 0;
-    final cashExp = firstIntValue(await db.db.rawQuery('''
-      SELECT COALESCE(SUM(e.amount_c),0) FROM expenses e
-      WHERE e.method='cash' AND e.paid_at >= ?
-    ''', [from])) ?? 0;
-    final cashMoves = firstIntValue(await db.db.rawQuery('''
-      SELECT COALESCE(SUM(CASE WHEN type='in' THEN amount_c ELSE -amount_c END),0)
+    final methods = kindMethods[reg.kind] ?? const ['cash'];
+    int methodSum = 0;
+    if (methods.isNotEmpty) {
+      final ph = List.filled(methods.length, '?').join(',');
+      methodSum = firstIntValue(await db.db.rawQuery("""
+        SELECT COALESCE(SUM(CASE WHEN direction='sale' AND kind='payment' THEN amount_c ELSE -amount_c END),0)
+        FROM payments p
+        WHERE p.method IN ($ph) AND p.paid_at >= ?
+      """, [...methods, from])) ?? 0;
+      if (reg.kind == 'cash') {
+        final cashExp = firstIntValue(await db.db.rawQuery("""
+          SELECT COALESCE(SUM(e.amount_c),0) FROM expenses e
+          WHERE e.method='cash' AND e.paid_at >= ?
+        """, [from])) ?? 0;
+        methodSum -= cashExp;
+      }
+    }
+    final cashMoves = firstIntValue(await db.db.rawQuery("""
+      SELECT COALESCE(SUM(CASE WHEN type IN ('in','transfer_in') THEN amount_c ELSE -amount_c END),0)
       FROM cash_movements WHERE register_id = ?
-    ''', [registerId])) ?? 0;
-    return reg.openingC + cashIn - cashOutPay - cashOutPurch - cashExp + cashMoves;
+    """, [registerId])) ?? 0;
+    return reg.openingC + methodSum + cashMoves;
   }
 
   Future<void> closeRegister(int registerId, int countedC) async {
@@ -970,14 +997,45 @@ class CashRepo {
     }, where: 'id = ?', whereArgs: [registerId]);
   }
 
-  Future<List<CashRegister>> registers({int limit = 60}) async {
-    final rows = await db.db.query('cash_registers', orderBy: 'id DESC', limit: limit);
+  Future<List<CashRegister>> registers({int limit = 60, String? kind, bool? open}) async {
+    final where = <String>[];
+    final args = <Object?>[];
+    if (kind != null) { where.add('kind = ?'); args.add(kind); }
+    if (open != null) { where.add('status = ?'); args.add(open ? 'open' : 'closed'); }
+    final rows = await db.db.query('cash_registers',
+        where: where.isEmpty ? null : where.join(' AND '),
+        whereArgs: where.isEmpty ? null : args,
+        orderBy: 'id DESC', limit: limit);
     return rows.map(CashRegister.fromRow).toList();
   }
 
+  /// Moves money between two open registers, recording BOTH sides atomically.
+  Future<void> transfer({required int fromId, required int toId, required int amountC, required String reason}) async {
+    if (fromId == toId) throw AppException('same register');
+    if (amountC <= 0) throw AppException('invalid amount');
+    final now = Dates.iso(DateTime.now());
+    await db.db.transaction((tx) async {
+      final a = await tx.query('cash_registers', where: 'id = ?', whereArgs: [fromId], limit: 1);
+      final b = await tx.query('cash_registers', where: 'id = ?', whereArgs: [toId], limit: 1);
+      if (a.isEmpty || b.isEmpty) throw AppException('register not found');
+      await tx.insert('cash_movements', {
+        'register_id': fromId, 'type': 'transfer_out', 'amount_c': amountC,
+        'reason': reason, 'ref': 'to:$toId', 'moved_at': now,
+      });
+      await tx.insert('cash_movements', {
+        'register_id': toId, 'type': 'transfer_in', 'amount_c': amountC,
+        'reason': reason, 'ref': 'from:$fromId', 'moved_at': now,
+      });
+      await tx.insert('audit_logs', {
+        'action': 'cash_transfer', 'entity': 'cash_registers', 'entity_id': toId,
+        'details': reason, 'actor': Audit.actor, 'logged_at': now,
+      });
+    });
+  }
+
   /// adds a manual cash in/out on the open register (deposit / withdrawal).
-  Future<void> manualMove({required bool cashIn, required int amountC, required String reason}) async {
-    final reg = await openRegister();
+  Future<void> manualMove({required bool cashIn, required int amountC, required String reason, String kind = 'cash'}) async {
+    final reg = await openRegister(kind: kind);
     if (reg == null) throw AppException('no register');
     await db.db.insert('cash_movements', {
       'register_id': reg.id, 'type': cashIn ? 'in' : 'out', 'amount_c': amountC,
@@ -991,6 +1049,89 @@ class CashRepo {
         whereArgs: registerId != null ? [registerId] : null,
         orderBy: 'id DESC', limit: limit);
     return rows.map(CashMovement.fromRow).toList();
+  }
+}
+
+/// ---------------------------------------------------------------------------
+/// Checks: received & issued, with due dates and status tracking
+/// ---------------------------------------------------------------------------
+class ChecksRepo {
+  ChecksRepo(this.db);
+  final AppDatabase db;
+
+  Future<int> add(CheckRec c) => db.db.insert('checks', {
+        'direction': c.direction, 'party': c.party, 'amount_c': c.amountC,
+        'check_no': c.checkNo, 'bank': c.bank, 'issued_at': c.issuedAt,
+        'due_date': c.dueDate, 'status': c.status, 'notes': c.notes,
+        'created_at': Dates.iso(DateTime.now()),
+      });
+
+  Future<List<CheckRec>> list({String? direction, String? status, int limit = 300}) async {
+    final where = <String>[];
+    final args = <Object?>[];
+    if (direction != null) { where.add('direction = ?'); args.add(direction); }
+    if (status != null) { where.add('status = ?'); args.add(status); }
+    final rows = await db.db.query('checks',
+        where: where.isEmpty ? null : where.join(' AND '),
+        whereArgs: where.isEmpty ? null : args,
+        orderBy: 'due_date ASC', limit: limit);
+    return rows.map(CheckRec.fromRow).toList();
+  }
+
+  /// Due or overdue checks (pending, due date today or before).
+  Future<List<CheckRec>> dueOrOverdue() async {
+    final rows = await db.db.query('checks',
+        where: "status = 'pending' AND due_date <= ?",
+        whereArgs: [Dates.isoDay(DateTime.now())],
+        orderBy: 'due_date ASC');
+    return rows.map(CheckRec.fromRow).toList();
+  }
+
+  Future<void> setStatus(int id, String status) async {
+    await db.db.update('checks', {'status': status}, where: 'id = ?', whereArgs: [id]);
+    await db.db.insert('audit_logs', {
+      'action': 'check_status', 'entity': 'checks', 'entity_id': id,
+      'details': status, 'actor': Audit.actor, 'logged_at': Dates.iso(DateTime.now()),
+    });
+  }
+}
+
+/// ---------------------------------------------------------------------------
+/// Employee advances (salaf) with partial settlement
+/// ---------------------------------------------------------------------------
+class AdvancesRepo {
+  AdvancesRepo(this.db);
+  final AppDatabase db;
+
+  Future<int> add({required String employee, required int amountC, String notes = ''}) async {
+    final now = Dates.iso(DateTime.now());
+    return db.db.insert('advances', {
+      'employee': employee, 'amount_c': amountC, 'taken_at': now,
+      'status': 'open', 'notes': notes, 'created_at': now,
+    });
+  }
+
+  Future<List<AdvanceRec>> list({String? status, int limit = 200}) async {
+    final rows = await db.db.query('advances',
+        where: status != null ? 'status = ?' : null,
+        whereArgs: status != null ? [status] : null,
+        orderBy: 'id DESC', limit: limit);
+    return rows.map(AdvanceRec.fromRow).toList();
+  }
+
+  Future<void> settle(int id, int amountC) async {
+    await db.db.transaction((tx) async {
+      final rows = await tx.query('advances', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) throw AppException('advance not found');
+      final a = AdvanceRec.fromRow(rows.first);
+      final total = a.settledC + amountC;
+      final done = total >= a.amountC;
+      await tx.update('advances', {
+        'settled_c': total,
+        'status': done ? 'settled' : 'open',
+        'settled_at': done ? Dates.iso(DateTime.now()) : null,
+      }, where: 'id = ?', whereArgs: [id]);
+    });
   }
 }
 
@@ -1148,5 +1289,62 @@ class AnalyticsRepo {
       FROM customers c LEFT JOIN sales s ON s.customer_id = c.id
         AND s.status='completed' AND s.sale_at >= ? AND s.sale_at <= ?
       GROUP BY c.id ORDER BY total DESC LIMIT 200''', [from, to]);
+  }
+
+  /// Real profitability per product over a range, ordered by profit. Revenue
+  /// is net of line discounts; cost uses recorded unit_cost_c at sale time.
+  Future<List<Map<String, Object?>>> productProfit(String from, String to) async {
+    return db.db.rawQuery('''
+      SELECT si.product_id AS pid, si.name_fr, si.name_ar,
+             COALESCE(SUM(si.qty - si.returned_qty),0) AS q,
+             COALESCE(SUM(si.total_c),0) AS rev,
+             COALESCE(SUM(si.total_c),0) AS rev_gross,
+             COALESCE(SUM(si.qty * si.unit_cost_c),0) AS cost
+      FROM sale_items si JOIN sales s ON s.id = si.sale_id
+      WHERE s.status='completed' AND s.sale_at >= ? AND s.sale_at <= ?
+      GROUP BY si.product_id ORDER BY (COALESCE(SUM(si.total_c),0) - COALESCE(SUM(si.qty*si.unit_cost_c),0)) DESC
+      LIMIT 500''', [from, to]);
+  }
+
+  /// Inventory assistant: real 30-day sales velocity, days of stock left,
+  /// suggested reorder quantity and no-sale detection for every live product.
+  Future<List<Map<String, Object?>>> stockAssist() async {
+    final since30 = Dates.iso(DateTime.now().subtract(const Duration(days: 30)));
+    return db.db.rawQuery('''
+      SELECT p.id, p.name_fr, p.name_ar, p.stock_qty AS stock, p.min_stock AS min_stock,
+        COALESCE((SELECT SUM(si.qty - si.returned_qty) FROM sale_items si
+          JOIN sales s ON s.id = si.sale_id
+          WHERE si.product_id = p.id AND s.status='completed' AND s.sale_at >= ?),0) AS sold30,
+        (SELECT MAX(s.sale_at) FROM sale_items si
+          JOIN sales s ON s.id = si.sale_id
+          WHERE si.product_id = p.id AND s.status='completed') AS last_sale
+      FROM products p WHERE p.archived = 0 ORDER BY p.stock_qty ASC''', [since30]);
+  }
+
+  /// Sales forecast for the next 30 days: projection from the average daily
+  /// sales of the last months (up to 3). An estimate, never a promise.
+  Future<Map<String, Object?>> forecast() async {
+    final ms = await monthlySales(3);
+    if (ms.isEmpty) return {'estimate': 0, 'confidence': 'low'};
+    var daysCounted = 0, total = 0;
+    for (final e in ms) {
+      final y = int.parse(e.key.substring(0, 4));
+      final m = int.parse(e.key.substring(5, 7));
+      final dim = DateTime(y, m + 1, 0).day;
+      final isNow = e.key == Dates.isoDay(DateTime.now()).substring(0, 7);
+      final nowDay = DateTime.now().day;
+      final days = (isNow && m == DateTime.now().month && y == DateTime.now().year)
+          ? nowDay
+          : dim;
+      if (days <= 0 || e.value <= 0) continue;
+      daysCounted += days;
+      total += e.value;
+    }
+    if (daysCounted == 0) return {'estimate': 0, 'confidence': 'low'};
+    final perDay = total / daysCounted;
+    return {
+      'estimate': (perDay * 30).round(),
+      'confidence': ms.length >= 3 ? 'medium' : 'low',
+    };
   }
 }

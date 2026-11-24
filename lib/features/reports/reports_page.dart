@@ -32,12 +32,15 @@ class _ReportsPageState extends State<ReportsPage> {
   bool loading = false;
   bool ran = false;
   String? loadError;
+  int forecastEstimate = 0;
+  String forecastConfidence = 'low';
 
   static const Map<String, String> _labels = {
     'sales': 'rep.sales', 'purchases': 'rep.purchases', 'expenses': 'rep.expenses',
     'profits': 'rep.profits', 'inventory': 'rep.inventory', 'customers': 'rep.customers',
     'suppliers': 'rep.suppliers', 'debts': 'rep.debts', 'payments': 'rep.payments',
-    'performance': 'rep.performance',
+    'performance': 'rep.performance', 'profitability': 'rep.productProfit',
+    'forecast': 'rep.forecast',
   };
 
   String get _fromIso => from.toIso8601String().substring(0, 10);
@@ -167,6 +170,26 @@ class _ReportsPageState extends State<ReportsPage> {
           m['kind'] == 'refund' ? tr('returns').toLowerCase() : tr('paid'),
           '${m['method']}', Money.fmt(m['amount_c'] as int? ?? 0), '${m['notes'] ?? ''}',
         ]];
+      case 'profitability':
+        final r = await st.analytics.productProfit(f, t);
+        header = [tr('name'), tr('soldQty'), tr('kpi.revenue'), tr('cost'), tr('kpi.grossProfit'), tr('rep.margin')];
+        data = [];
+        for (final m in r) {
+          final rev = m['rev'] as int? ?? 0;
+          final cost = m['cost'] as int? ?? 0;
+          final profit = rev - cost;
+          final margin = rev > 0 ? (profit * 100 / rev).toStringAsFixed(1) : '0.0';
+          data.add([
+            '${arName ? m['name_ar'] : m['name_fr']}', '${m['q']}',
+            Money.fmt(rev), Money.fmt(cost), Money.fmt(profit), margin,
+          ]);
+        }
+      case 'forecast':
+        final fc = await st.analytics.forecast();
+        header = [tr('date'), tr('kpi.revenue')];
+        data = [];
+        forecastEstimate = fc['estimate'] as int? ?? 0;
+        forecastConfidence = fc['confidence'] as String? ?? 'low';
       case 'performance':
         final catFilter = categoryId != null ? 'AND p.category_id = ?' : '';
         String nameExpr = arName ? 'si.name_ar' : 'si.name_fr';
@@ -243,7 +266,10 @@ class _ReportsPageState extends State<ReportsPage> {
               flex: 4,
               child: SmartDropdown<String>(
                 label: tr('reports'),
-                items: [for (final e in _labels.entries) e.key],
+                items: [
+                  for (final e in _labels.entries)
+                    if (context.read<AppState>().canSeeProfits || (e.key != 'profits' && e.key != 'profitability')) e.key
+                ],
                 value: report,
                 display: (v) => tr(_labels[v]!),
                 onChanged: (v) { if (v != null) setState(() { report = v; ran = false; rows = []; }); },
@@ -294,6 +320,8 @@ class _ReportsPageState extends State<ReportsPage> {
                 ? ErrorStateX(message: loadError!, onRetry: _run)
                 : !ran
                 ? EmptyStateX(title: tr('rep.pick'), body: tr('rep.pickHint'), icon: Icons.assessment_outlined)
+                : report == 'forecast'
+                ? _forecastCard(context)
                 : rows.isEmpty
                     ? EmptyStateX(title: tr('rep.noData'), body: tr('rep.pickHint'), icon: Icons.assessment_outlined)
                     : TableX(
@@ -303,6 +331,47 @@ class _ReportsPageState extends State<ReportsPage> {
                       ),
       ),
     ]);
+  }
+
+  Widget _forecastCard(BuildContext context) {
+    final monthly = forecastEstimate;
+    final confident = forecastConfidence == 'medium';
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: HoverCard(
+          padding: const EdgeInsets.all(26),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(
+                width: 46, height: 46,
+                decoration: BoxDecoration(color: C.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.insights_rounded, color: C.accent, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(tr('rep.forecast'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800))),
+              BadgeX(text: confident ? '+90d' : '30d', color: confident ? C.success : C.warning),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.center,
+              child: Text(Money.fmt(monthly, locale: gLocale),
+                  style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: C.primary)),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: C.warning.withValues(alpha: .08), borderRadius: BorderRadius.circular(10)),
+              child: Row(children: [
+                const Icon(Icons.info_outline, size: 17, color: C.warning),
+                const SizedBox(width: 9),
+                Expanded(child: Text(tr('rep.forecastHint'), style: const TextStyle(fontSize: 12, height: 1.5, color: C.textPrimary))),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 
   Widget _dateField(BuildContext context, String label, DateTime value, ValueChanged<DateTime> onPick) {

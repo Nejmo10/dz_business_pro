@@ -100,6 +100,7 @@ class _InvoicesPageState extends State<InvoicesPage> {
       Row(children: [
         IconButtonX(icon: Icons.remove_red_eye_outlined, size: 30, tooltip: tr('details'), onPressed: () => _details(context, s)),
         IconButtonX(icon: Icons.print_outlined, size: 30, tooltip: tr('print'), onPressed: () => _print(context, s)),
+        if (!cancelled) IconButtonX(icon: Icons.local_shipping_outlined, size: 30, color: C.success, tooltip: tr('bl.title'), onPressed: () => _deliveryNote(context, s)),
         if (!cancelled) IconButtonX(icon: Icons.assignment_return_outlined, size: 30, color: C.secondary, tooltip: tr('returns'), onPressed: () => _return(context, s)),
       ]),
     ];
@@ -124,6 +125,28 @@ class _InvoicesPageState extends State<InvoicesPage> {
       await PrintService(st).exportInvoice(s, items);
     } else {
       await PrintService(st).printSale(s, items, fmt);
+    }
+  }
+
+  Future<void> _deliveryNote(BuildContext context, Sale s) async {
+    final st = context.read<AppState>();
+    final items = await st.sales.saleItems(s.id);
+    if (!mounted) return;
+    final action = await showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(400, 300, 400, 0),
+      items: [
+        PopupMenuItem(value: 'print', child: Text(tr('print'))),
+        PopupMenuItem(value: 'pdf', child: Text(tr('exportPdf'))),
+      ],
+    );
+    if (action == null || !mounted) return;
+    final ps = PrintService(st);
+    final bytes = await ps.deliveryNote(s, items);
+    if (action == 'pdf') {
+      await ps.exportPdf(bytes, 'BL_${s.invoiceNo}.pdf');
+    } else {
+      await ps.printBytes(bytes);
     }
   }
 

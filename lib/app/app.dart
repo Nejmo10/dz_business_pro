@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import '../features/auth/login_page.dart';
 import '../features/onboarding/onboarding_page.dart';
 import '../features/shell.dart';
 import 'l10n.dart';
@@ -73,11 +74,18 @@ class DzBusinessApp extends StatelessWidget {
                 ],
                 builder: (context, child) => Directionality(
                   textDirection: locale == 'ar' ? TextDirection.rtl : TextDirection.ltr,
-                  child: child ?? const SizedBox.shrink(),
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      textScaler: TextScaler.linear(st.fontScale),
+                    ),
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
-                home: st.onboardingDone
-                    ? HomeShell(state: st)
-                    : OnboardingPage(state: st),
+                home: !st.onboardingDone
+                    ? OnboardingPage(state: st)
+                    : (st.usersEnabled && st.sessionUser == null)
+                        ? LoginPage(state: st)
+                        : HomeShell(state: st),
               );
             },
           );

@@ -29,10 +29,13 @@ class _PosPageState extends State<PosPage> {
   String query = '';
   int? categoryFilter;
   int? customerId;
+  bool wholesale = false;
   List<Product> products = [];
   List<Category> categories = [];
   List<Customer> customers = const [];
   bool loading = true;
+
+  int unitPrice(Product p) => wholesale && p.wholesaleC > 0 ? p.wholesaleC : p.priceC;
 
   @override
   void didChangeDependencies() {
@@ -77,7 +80,7 @@ class _PosPageState extends State<PosPage> {
             p.barcode.contains(query);
       }).toList();
 
-  int get subtotalC => cart.values.fold(0, (s, l) => s + l.qty * l.product.priceC);
+  int get subtotalC => cart.values.fold(0, (s, l) => s + l.qty * unitPrice(l.product));
 
   void addToCart(Product p, {int qty = 1}) {
     setState(() {
@@ -135,6 +138,15 @@ class _PosPageState extends State<PosPage> {
                 ),
               ),
             ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 210,
+              child: SegmentedX<String>(
+                options: [('retail', tr('pos.retailPrice')), ('wholesale', tr('pos.wholesalePrice'))],
+                selected: wholesale ? 'wholesale' : 'retail',
+                onChanged: (v) => setState(() => wholesale = v == 'wholesale'),
+              ),
+            ),
           ]),
           const SizedBox(height: 14),
           Expanded(
@@ -151,6 +163,7 @@ class _PosPageState extends State<PosPage> {
                         itemCount: list.length,
                         itemBuilder: (ctx, i) => ProductCard(
                           product: list[i],
+                          priceC: unitPrice(list[i]),
                           inCart: cart[list[i].id]?.qty ?? 0,
                           onTap: () => addToCart(list[i]),
                         ),
@@ -165,6 +178,7 @@ class _PosPageState extends State<PosPage> {
           lines: cart.values.toList(),
           customerId: customerId,
           customers: customers,
+          wholesale: wholesale,
           onQty: setQty,
           onCustomer: (id) => setState(() => customerId = id),
           onCheckout: _checkout,
@@ -179,7 +193,10 @@ class _PosPageState extends State<PosPage> {
       builder: (ctx) => Dialog(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460),
-          child: CheckoutDialog(lines: cart.values.toList(), customerId: customerId, customers: customers),
+          child: CheckoutDialog(
+            lines: cart.values.toList(), customerId: customerId, customers: customers,
+            wholesale: wholesale,
+          ),
         ),
       ),
     );
@@ -207,8 +224,9 @@ class _PosPageState extends State<PosPage> {
 }
 
 class ProductCard extends StatefulWidget {
-  const ProductCard({super.key, required this.product, required this.inCart, required this.onTap});
+  const ProductCard({super.key, required this.product, required this.priceC, required this.inCart, required this.onTap});
   final Product product;
+  final int priceC;
   final int inCart;
   final VoidCallback onTap;
 
@@ -276,7 +294,7 @@ class _ProductCardState extends State<ProductCard> {
               const SizedBox(height: 3),
               Row(children: [
                 Flexible(
-                  child: Text(Money.fmt(p.priceC, locale: gLocale),
+                  child: Text(Money.fmt(widget.priceC, locale: gLocale),
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: C.primary)),
                 ),
@@ -298,6 +316,7 @@ class CartPanel extends StatelessWidget {
     required this.lines,
     required this.customerId,
     required this.customers,
+    this.wholesale = false,
     required this.onQty,
     required this.onCustomer,
     required this.onCheckout,
@@ -306,13 +325,16 @@ class CartPanel extends StatelessWidget {
   final List<CartLine> lines;
   final int? customerId;
   final List<Customer> customers;
+  final bool wholesale;
+
+  int unitPrice(Product p) => wholesale && p.wholesaleC > 0 ? p.wholesaleC : p.priceC;
   final void Function(int productId, int qty) onQty;
   final ValueChanged<int?> onCustomer;
   final VoidCallback onCheckout;
 
   @override
   Widget build(BuildContext context) {
-    final subtotal = lines.fold<int>(0, (s, l) => s + l.qty * l.product.priceC);
+    final subtotal = lines.fold<int>(0, (s, l) => s + l.qty * unitPrice(l.product));
     return Container(
       decoration: BoxDecoration(
         color: C.surface,
@@ -385,7 +407,7 @@ class CartPanel extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(line.product.name(gLocale == 'ar'), maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-            Text('${Money.fmt(line.product.priceC)} \\u00d7 ${line.qty} = ${Money.fmt(line.qty * line.product.priceC)}',
+            Text('${Money.fmt(unitPrice(line.product))} \\u00d7 ${line.qty} = ${Money.fmt(line.qty * unitPrice(line.product))}',
                 style: const TextStyle(fontSize: 11.5, color: C.textSecondary)),
           ]),
         ),
@@ -430,10 +452,13 @@ class CartPanel extends StatelessWidget {
 }
 /// ======================================================== checkout dialog
 class CheckoutDialog extends StatefulWidget {
-  const CheckoutDialog({super.key, required this.lines, required this.customerId, required this.customers});
+  const CheckoutDialog({super.key, required this.lines, required this.customerId, required this.customers, this.wholesale = false});
   final List<CartLine> lines;
   final int? customerId;
   final List<Customer> customers;
+  final bool wholesale;
+
+  int unitPriceOf(Product p) => wholesale && p.wholesaleC > 0 ? p.wholesaleC : p.priceC;
 
   @override
   State<CheckoutDialog> createState() => _CheckoutDialogState();
@@ -452,7 +477,7 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
     return null;
   }
 
-  int get _subtotalC => widget.lines.fold(0, (s, l) => s + l.qty * l.product.priceC);
+  int get _subtotalC => widget.lines.fold(0, (s, l) => s + l.qty * widget.unitPriceOf(l.product));
 
   SalesTotals _totals() {
     final prof = context.read<AppState>().profile;
@@ -614,7 +639,10 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
     setState(() => saving = true);
     final items = [
       for (final l in widget.lines)
-        SaleItem(productId: l.product.id, qty: l.qty, unitPriceC: l.product.priceC, totalC: l.qty * l.product.priceC),
+        SaleItem(
+          productId: l.product.id, qty: l.qty,
+          unitPriceC: widget.unitPriceOf(l.product),
+          totalC: l.qty * widget.unitPriceOf(l.product)),
     ];
     try {
       final saleId = await st.sales.createSale(

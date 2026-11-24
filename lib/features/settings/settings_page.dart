@@ -13,6 +13,7 @@ import '../../core/ui.dart';
 import '../../data/database/app_database.dart';
 import '../../data/migrations/migrations.dart';
 import '../../data/models/models.dart';
+import '../../data/repositories/users_repo.dart';
 
 /// Settings: business profile, options, backup/restore, audit log, about.
 class SettingsPage extends StatefulWidget {
@@ -129,6 +130,8 @@ class _SettingsPageState extends State<SettingsPage> {
         _profileCard(context),
         const SizedBox(height: 16),
         _optionsCard(context),
+        const SizedBox(height: 16),
+        _usersCard(context),
         const SizedBox(height: 16),
         _backupCard(context),
         const SizedBox(height: 16),
@@ -248,8 +251,188 @@ class _SettingsPageState extends State<SettingsPage> {
           },
         ),
         ),
+        Padding(
+          padding: const EdgeInsetsDirectional.only(start: 8, top: 6),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(Icons.format_size_rounded, size: 17, color: C.textSecondary),
+              const SizedBox(width: 9),
+              Text(tr('settings.fontSize'), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Text('${(st.fontScale * 100).round()}%', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: C.primary)),
+            ]),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(trackHeight: 3.5),
+              child: Slider(
+                value: st.fontScale.clamp(0.9, 1.3),
+                min: 0.9,
+                max: 1.3,
+                divisions: 8,
+                activeColor: C.primary,
+                label: '${(st.fontScale * 100).round()}%',
+                onChanged: (v) async {
+                  await st.setFontScale(v);
+                  if (mounted) setState(() {});
+                },
+              ),
+            ),
+            Text(tr('settings.fontHint'), style: const TextStyle(fontSize: 11.5, color: C.textSecondary)),
+          ]),
+        ),
       ]),
     );
+  }
+
+  // ------------------------------------------------------------------ users --
+  Widget _usersCard(BuildContext context) {
+    final st = context.read<AppState>();
+    return HoverCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        FormHeader(title: tr('users.title'), subtitle: tr('users.subtitle')),
+        FutureBuilder<List<User>>(
+          future: st.users.list(),
+          builder: (_, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+              );
+            }
+            final users = snap.data ?? const <User>[];
+            return Column(children: [
+              if (users.isEmpty)
+                EmptyStateX(
+                  title: tr('users.title'),
+                  body: tr('users.empty'),
+                  icon: Icons.manage_accounts_rounded,
+                  action: AppButton(label: tr('users.add'), icon: Icons.person_add_alt_1_rounded, onPressed: () => _addUser(st)),
+                ),
+              for (final u in users)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: C.bg,
+                      border: Border.all(color: C.border),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Row(children: [
+                      CircleAvatar(
+                        radius: 15,
+                        backgroundColor: C.primary.withValues(alpha: .13),
+                        child: Text(u.username.isNotEmpty ? u.username[0].toUpperCase() : '?', style: const TextStyle(fontSize: 13, color: C.primary, fontWeight: FontWeight.w700)),
+                      ),
+                      const SizedBox(width: 11),
+                      Flexible(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(u.username, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                          Text('${tr('role')}: ${tr('role.${u.role}')}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11.5, color: C.textSecondary)),
+                        ]),
+                      ),
+                      const SizedBox(width: 8),
+                      BadgeX(text: u.active ? tr('users.active') : tr('users.inactive'), color: u.active ? C.success : C.textSecondary),
+                      const Spacer(),
+                      IconButtonX(icon: Icons.grid_view_rounded, tooltip: tr('users.changePin'), onPressed: () => _changePin(st, u)),
+                      IconButtonX(icon: Icons.block_rounded, tooltip: u.active ? tr('users.inactive') : tr('users.active'),
+                          color: u.active ? C.warning : C.success, onPressed: () async {
+                            await st.users.setActive(u.id, !u.active);
+                            await st.settings.audit(!u.active ? 'user_activate' : 'user_deactivate', 'users', u.id, u.username);
+                            st.changed();
+                          }),
+                      IconButtonX(icon: Icons.delete_outline_rounded, tooltip: tr('delete'), color: C.danger,
+                          onPressed: () async {
+                            final ok = await confirmDialog(context,
+                                title: tr('users.deleteTitle'), body: '${tr('users.deleteWarn')}\n${u.username}');
+                            if (!ok) return;
+                            await st.users.delete(u.id);
+                            await st.settings.audit('user_delete', 'users', u.id, u.username);
+                            st.usersEnabled = await st.users.hasUsers();
+                            st.changed();
+                          }),
+                    ]),
+                  ),
+                ),
+              if (users.isNotEmpty)
+                Row(children: [
+                  AppButton(label: tr('users.add'), icon: Icons.person_add_alt_1_rounded, onPressed: () => _addUser(st)),
+                ]),
+            ]);
+          },
+        ),
+        const SizedBox(height: 6),
+        Text(tr('users.roleHint'), style: const TextStyle(fontSize: 11.5, color: C.textSecondary)),
+      ]),
+    );
+  }
+
+  Future<void> _addUser(AppState st) async {
+    final username = TextEditingController();
+    final pin = TextEditingController();
+    String role = 'seller';
+    final roles = ['manager', 'seller', 'accountant', 'stock'];
+    final ok = await formDialog<bool>(
+      context,
+      title: tr('users.add'),
+      width: 440,
+      body: (ctx) => StatefulBuilder(builder: (ctx, setD) => Column(mainAxisSize: MainAxisSize.min, children: [
+            FieldX(controller: username, label: tr('users.name')),
+            const SizedBox(height: 12),
+            FieldX(controller: pin, label: tr('users.pin'), obscure: true,
+                keyboardType: TextInputType.number,
+                onSubmitted: (_) => Navigator.of(ctx).pop(true),
+                prefix: const Icon(Icons.password_rounded, size: 18)),
+            const SizedBox(height: 10),
+            SmartDropdown<String>(
+              items: roles,
+              value: role,
+              display: (r) => tr('role.$r'),
+              onChanged: (v) => setD(() => role = v ?? 'seller'),
+            ),
+            const SizedBox(height: 20),
+          ])),
+    );
+    if (ok != true) return;
+    final uname = username.text.trim();
+    final pinText = pin.text.trim();
+    if (uname.isEmpty || pinText.length < 4 || int.tryParse(pinText) == null) {
+      Toasts.show(context, tr('users.pinShort'), kind: ToastKind.error);
+      return;
+    }
+    await st.users.create(username: uname, pin: pinText, role: role);
+    await st.settings.audit('user_create', 'users', 0, uname);
+    st.usersEnabled = true;
+    st.changed();
+    if (!mounted) return;
+    Toasts.show(context, tr('users.added'), kind: ToastKind.success);
+  }
+
+  Future<void> _changePin(AppState st, User u) async {
+    final pin = TextEditingController();
+    final ok = await formDialog<bool>(
+      context,
+      title: '${tr('users.changePin')} — ${u.username}',
+      width: 400,
+      body: (ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
+            FieldX(controller: pin, label: tr('users.pin'), obscure: true,
+                keyboardType: TextInputType.number,
+                onSubmitted: (_) => Navigator.of(ctx).pop(true),
+                prefix: const Icon(Icons.password_rounded, size: 18)),
+            const SizedBox(height: 20),
+          ]),
+    );
+    if (ok != true) return;
+    final pinText = pin.text.trim();
+    if (pinText.length < 4 || int.tryParse(pinText) == null) {
+      Toasts.show(context, tr('users.pinShort'), kind: ToastKind.error);
+      return;
+    }
+    await st.users.changePin(u.id, pinText);
+    await st.settings.audit('user_pin_change', 'users', u.id, u.username);
+    if (!mounted) return;
+    Toasts.show(context, tr('users.changePin'), kind: ToastKind.success);
   }
 
   // ------------------------------------------------------------ backup/restore
