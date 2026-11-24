@@ -206,8 +206,9 @@ class KpiCard extends StatelessWidget {
     return HoverCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Container(
               width: 38, height: 38,
               decoration: BoxDecoration(
@@ -216,11 +217,13 @@ class KpiCard extends StatelessWidget {
               ),
               child: Icon(_iconOf(icon), color: color, size: 19),
             ),
-            const Spacer(),
             if (subtitle != null)
-              Text(subtitle!, style: const TextStyle(fontSize: 11.5, color: C.textSecondary)),
+              Expanded(
+                child: Text(subtitle!, textAlign: TextAlign.end,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5, color: C.textSecondary)),
+              ),
           ]),
-          const Spacer(),
           AnimatedNumber(
             value: double.tryParse(
                   value.replaceAll(RegExp(r'[^0-9.\-]'), ''),

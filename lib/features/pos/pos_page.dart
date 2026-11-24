@@ -421,7 +421,8 @@ class CartPanel extends StatelessWidget {
 
   Widget _summaryRow(String label, int cents) {
     return Row(children: [
-      Text(label, style: const TextStyle(fontSize: 13, color: C.textSecondary)),
+      Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13, color: C.textSecondary))),
       const Spacer(),
       Text(Money.fmt(cents), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
     ]);
@@ -576,7 +577,8 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: C.textSecondary)),
+        Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: C.textSecondary))),
         const Spacer(),
         Text(Money.fmt(cents), style: TextStyle(
             fontSize: 13.5, fontWeight: label == tr('total') ? FontWeight.w800 : FontWeight.w600,

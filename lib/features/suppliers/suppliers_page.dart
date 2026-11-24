@@ -134,7 +134,11 @@ class _SuppliersPageState extends State<SuppliersPage> {
         ]),
       ),
       const SizedBox(height: 16),
-      FormFooter(onSubmit: (c1.text.trim().isEmpty && c2.text.trim().isEmpty) ? () {} : () async {
+      FormFooter(onSubmit: () async {
+        if (c1.text.trim().isEmpty && c2.text.trim().isEmpty) {
+          Toasts.show(ctx, tr('requiredField'), kind: ToastKind.warning);
+          return;
+        }
         final sup = Supplier(
           id: existing?.id ?? 0,
           nameAr: c1.text.trim(), nameFr: c2.text.trim(),
@@ -176,7 +180,11 @@ class _SuppliersPageState extends State<SuppliersPage> {
           ]),
         ),
         const SizedBox(height: 16),
-        FormFooter(onSubmit: Money.fromString(c1.text) <= 0 ? () {} : () async {
+        FormFooter(onSubmit: () async {
+          if (Money.fromString(c1.text) <= 0) {
+            Toasts.show(ctx, tr('requiredField'), kind: ToastKind.warning);
+            return;
+          }
           await st.people.recordPayment(direction: 'purchase', refId: 0, partyId: s.id,
               amountC: Money.fromString(c1.text), method: method, notes: tr('payment.paidTo'));
           await st.settings.audit('supplier_payment', 'suppliers', s.id, s.nameFr);
@@ -251,7 +259,8 @@ class _SuppliersPageState extends State<SuppliersPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: C.textSecondary)),
+        Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: C.textSecondary))),
         const Spacer(),
         Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
       ]),

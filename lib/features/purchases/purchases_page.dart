@@ -128,7 +128,11 @@ class _PurchasesPageState extends State<PurchasesPage> {
           ]),
         ),
         const SizedBox(height: 16),
-        FormFooter(onSubmit: Money.fromString(c1.text) <= 0 ? () {} : () async {
+        FormFooter(onSubmit: () async {
+          if (Money.fromString(c1.text) <= 0) {
+            Toasts.show(ctx, tr('requiredField'), kind: ToastKind.warning);
+            return;
+          }
           await st.people.recordPayment(direction: 'purchase', refId: p.id, partyId: p.supplierId,
               amountC: Money.fromString(c1.text), method: method, notes: p.invoiceNo);
           await st.settings.audit('purchase_payment', 'purchases', p.id, p.invoiceNo);
@@ -144,7 +148,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: C.textSecondary)),
+        Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: C.textSecondary))),
         const Spacer(),
         Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
       ]),
@@ -433,8 +438,9 @@ class _PurchaseEditorState extends State<PurchaseEditor> {
 
   Widget _kvRow(String label, String value, Color color) {
     return Row(children: [
-      Text(label, style: const TextStyle(fontSize: 12, color: C.textSecondary)),
-      const Spacer(),
+      Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: C.textSecondary))),
+        const Spacer(),
       Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
     ]);
   }

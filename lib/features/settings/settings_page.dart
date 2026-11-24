@@ -218,7 +218,9 @@ class _SettingsPageState extends State<SettingsPage> {
     return HoverCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         FormHeader(title: tr('settings.options'), subtitle: tr('settings.optionsHint')),
-        SwitchListTile(
+        Material(
+          type: MaterialType.transparency,
+          child: SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(tr('inv.allowNegative'), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
           subtitle: Text(tr('inv.allowNegativeWarn'), style: const TextStyle(fontSize: 12, color: C.textSecondary)),
@@ -229,7 +231,10 @@ class _SettingsPageState extends State<SettingsPage> {
             setState(() => negativeStock = v);
           },
         ),
-        SwitchListTile(
+        ),
+        Material(
+          type: MaterialType.transparency,
+          child: SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(tr('settings.autoBackup'), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
           subtitle: Text(tr('settings.autoBackupHint'), style: const TextStyle(fontSize: 12, color: C.textSecondary)),
@@ -239,6 +244,7 @@ class _SettingsPageState extends State<SettingsPage> {
             await st.settings.setBackupOnClose(v);
             setState(() => autoBackup = v);
           },
+        ),
         ),
       ]),
     );

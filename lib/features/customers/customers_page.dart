@@ -136,7 +136,11 @@ class _CustomersPageState extends State<CustomersPage> {
           ]),
         ),
         const SizedBox(height: 16),
-        FormFooter(onSubmit: (c1.text.trim().isEmpty && c2.text.trim().isEmpty) ? () {} : () async {
+        FormFooter(onSubmit: () async {
+          if (c1.text.trim().isEmpty && c2.text.trim().isEmpty) {
+            Toasts.show(ctx, tr('requiredField'), kind: ToastKind.warning);
+            return;
+          }
           final cust = Customer(
             id: existing?.id ?? 0,
             nameAr: c1.text.trim(), nameFr: c2.text.trim(),
@@ -179,7 +183,11 @@ class _CustomersPageState extends State<CustomersPage> {
           ]),
         ),
         const SizedBox(height: 16),
-        FormFooter(onSubmit: Money.fromString(c1.text) <= 0 ? () {} : () async {
+        FormFooter(onSubmit: () async {
+          if (Money.fromString(c1.text) <= 0) {
+            Toasts.show(ctx, tr('requiredField'), kind: ToastKind.warning);
+            return;
+          }
           await st.people.recordPayment(direction: 'sale', refId: 0, partyId: c.id,
               amountC: Money.fromString(c1.text), method: method, notes: tr('payment.receiptOf'));
           await st.settings.audit('customer_payment', 'customers', c.id, c.nameFr);

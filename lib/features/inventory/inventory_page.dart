@@ -64,7 +64,8 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget build(BuildContext context) {
     final st = context.read<AppState>();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Expanded(child: KpiCard(title: tr('inv.value'), value: Money.fmt(stockValue), icon: 'products', color: C.primary)),
         const SizedBox(width: 12),
         Expanded(child: KpiCard(title: tr('inv.units'), value: '$units', icon: 'products', color: C.secondary)),
@@ -74,7 +75,8 @@ class _InventoryPageState extends State<InventoryPage> {
         Expanded(child: KpiCard(title: tr('inv.outOfStock'), value: '$outCount', icon: 'lowstock', color: C.danger)),
         const SizedBox(width: 12),
         Expanded(child: KpiCard(title: tr('kpi.products'), value: '$productCount', icon: 'products', color: C.accent)),
-      ]),
+        ]),
+      ),
       const SizedBox(height: 14),
       Row(children: [
         AppButton(label: tr('inv.stockIn'), icon: Icons.south_west_rounded, onPressed: () => _move(context, 'in')),
@@ -159,7 +161,11 @@ class _InventoryPageState extends State<InventoryPage> {
           ]),
         ),
         const SizedBox(height: 16),
-        FormFooter(submitLabel: tr('confirm'), onSubmit: pid == null || qty <= 0 ? () {} : () async {
+        FormFooter(submitLabel: tr('confirm'), onSubmit: () async {
+          if (pid == null || qty <= 0) {
+            Toasts.show(ctx, tr('requiredField'), kind: ToastKind.warning);
+            return;
+          }
           final st = context.read<AppState>();
           try {
             await st.inventory.applyManualMove(productId: pid!, type: type, qty: qty,

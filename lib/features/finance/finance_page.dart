@@ -378,9 +378,9 @@ class _FinancePageState extends State<FinancePage> {
         Row(children: [
           Text(tr('fin.payments'), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
           const Spacer(),
-          Text('${tr('fin.receivedMonth')}: ${Money.fmt(paymentsInC)}', style: const TextStyle(fontSize: 11.5, color: C.success)),
-          const SizedBox(width: 14),
-          Text('${tr('fin.paidMonth')}: ${Money.fmt(paymentsOutC)}', style: const TextStyle(fontSize: 11.5, color: C.danger)),
+          Flexible(child: Text('${tr('fin.receivedMonth')}: ${Money.fmt(paymentsInC)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: C.success))),
+          const SizedBox(width: 8),
+          Flexible(child: Text('${tr('fin.paidMonth')}: ${Money.fmt(paymentsOutC)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: C.danger))),
         ]),
         const SizedBox(height: 10),
         if (moves.isEmpty)

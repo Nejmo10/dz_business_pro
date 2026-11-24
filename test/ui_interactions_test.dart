@@ -20,6 +20,13 @@ import 'package:dz_business_pro/features/products/products_page.dart';
 /// fields and the POS cart—proving hit-testing works everywhere.
 void main() {
   setUpAll(() {
+    if (const String.fromEnvironment('OVERFLOW_DUMP', defaultValue: 'false') == 'true') {
+      final prev = FlutterError.onError;
+      FlutterError.onError = (d) {
+        prev!(d);
+        debugDumpRenderTree();
+      };
+    }
     sqfliteFfiInit();
     // No-isolate so sqlite futures complete under the test FakeAsync clock.
     databaseFactory = createDatabaseFactoryFfi(
@@ -115,5 +122,65 @@ void main() {
     await tester.tap(find.text('Annuler'));
     await tester.pumpAndSettle();
     expect(find.byType(CheckoutDialog), findsNothing);
+  });
+
+  testWidgets('full sweep: every module renders and supplier save works',
+      (tester) async {
+    final st = AppState();
+    st.bootstrapFuture = Future.value();
+    st.onboardingDone = true;
+    final lang = const String.fromEnvironment('SWEEP_LANG', defaultValue: 'fr');
+    st.profile = BusinessProfile(name: 'Test SARL', language: lang);
+    final ar = lang == 'ar';
+
+    tester.view.physicalSize = const ui.Size(1600, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(DzBusinessApp(state: st));
+    await tester.pump();
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    final all = ar
+        ? ['لوحة التحكم', 'نقطة البيع', 'المنتجات', 'الفئات والعلامات', 'المخزون', 'الفواتير', 'العملاء', 'الموزّعون', 'المشتريات', 'المصاريف', 'الصندوق', 'التقارير', 'الإعدادات']
+        : ['Tableau de bord', 'Point de vente', 'Produits', 'Catégories & marques',
+           'Inventaire', 'Factures', 'Clients', 'Fournisseurs', 'Achats',
+           'Dépenses', 'Caisse', 'Rapports', 'Paramètres'];
+    final mode = const String.fromEnvironment('SWEEP_MODE', defaultValue: 'full');
+    final modules = mode.startsWith('only') ? [all[int.parse(mode.substring(4))]] : all;
+    for (final label in modules) {
+      final nav = find.text(label).first;
+      await tester.ensureVisible(nav);
+      await tester.pumpAndSettle();
+      await tester.tap(nav);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(find.byWidgetPredicate((w) => w is ErrorWidget), findsNothing,
+          reason: '$label rendered an error widget');
+      expect(find.byType(CircularProgressIndicator), findsNothing,
+          reason: '$label stuck on a loading spinner');
+    }
+
+    // Supplier creation flow (the reported broken button).
+    await tester.tap(find.text(ar ? 'الموزّعون' : 'Fournisseurs').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byWidgetPredicate(
+        (w) => w is AppButton && w.label == (ar ? 'إضافة' : 'Ajouter')).first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, 'Coca Cola');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byWidgetPredicate(
+        (w) => w is AppButton && w.label == (ar ? 'حفظ' : 'Enregistrer')).last);
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    final rows = await AppDatabase.instance.db
+        .rawQuery("SELECT COUNT(*) c FROM suppliers WHERE name_fr = 'Coca Cola'");
+    expect(rows.first['c'], 1, reason: 'supplier persisted in the database');
+    expect(find.text('Coca Cola'), findsWidgets,
+        reason: 'supplier saved and visible in the table');
+
+    // Inventory page KPIs render after supplier save (real numbers area).
+    await tester.tap(find.text(ar ? 'المخزون' : 'Inventaire').first);
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.text(ar ? 'إدخال مخزون' : 'Entrée de stock'), findsOneWidget);
   });
 }

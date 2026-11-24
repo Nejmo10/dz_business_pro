@@ -70,7 +70,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
     final m = DateTime(now.year, now.month - monthOffset);
     final monthLabel = '${m.year}-${m.month.toString().padLeft(2, '0')}';
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Expanded(child: KpiCard(title: tr('kpi.expenses'), value: Money.fmt(total), icon: 'expense', color: C.warning)),
         Expanded(
           child: HoverCard(
@@ -86,7 +87,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
             ]),
           ),
         ),
-      ]),
+        ]),
+      ),
       const SizedBox(height: 14),
       Row(children: [
         IconButtonX(icon: Icons.chevron_left_rounded, onPressed: () { setState(() => monthOffset++); _reload(); }),
@@ -210,7 +212,11 @@ class _ExpensesPageState extends State<ExpensesPage> {
           ]),
         ),
         const SizedBox(height: 16),
-        FormFooter(onSubmit: Money.fromString(c2.text) <= 0 ? () {} : () async {
+        FormFooter(onSubmit: () async {
+          if (Money.fromString(c2.text) <= 0) {
+            Toasts.show(ctx, tr('requiredField'), kind: ToastKind.warning);
+            return;
+          }
           final id = await st.expenses.add(
             categoryKey: cat,
             description: c1.text.trim().isEmpty ? (gLocale == 'ar' ? cats.firstWhere((c) => c.$1 == cat).$2 : cats.firstWhere((c) => c.$1 == cat).$3) : c1.text.trim(),
