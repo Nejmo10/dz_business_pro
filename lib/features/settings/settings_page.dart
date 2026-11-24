@@ -45,8 +45,11 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!loaded) _load();
   }
 
+  String? loadError;
+
   Future<void> _load() async {
     final st = context.read<AppState>();
+    try {
     final pf = st.profile;
     if (name.text.isEmpty && pf.name.isNotEmpty) {
       name.text = pf.name;
@@ -72,7 +75,12 @@ class _SettingsPageState extends State<SettingsPage> {
       autoBackup = results[1] as bool;
       audit = results[2] as List<AuditEntry>;
       loaded = true;
+      loadError = null;
     });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loaded = true; loadError = '$e'; });
+    }
   }
 
   @override
@@ -114,6 +122,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     if (!loaded) return const Center(child: CircularProgressIndicator());
+    if (loadError != null) return ErrorStateX(message: loadError!, onRetry: _load);
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

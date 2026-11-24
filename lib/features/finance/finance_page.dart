@@ -43,8 +43,11 @@ class _FinancePageState extends State<FinancePage> {
     return [(f, t)];
   }
 
+  String? loadError;
+
   Future<void> _reload() async {
     final st = context.read<AppState>();
+    try {
     final (from, to) = _monthRange.first;
     final reg = await st.cash.openRegister();
     final expected = reg == null ? 0 : await st.cash.expectedCash(reg.id);
@@ -81,12 +84,18 @@ class _FinancePageState extends State<FinancePage> {
       history = results[8] as List<CashRegister>;
       moves = results[9] as List<CashMovement>;
       loading = false;
+      loadError = null;
     });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (loading) return const Center(child: CircularProgressIndicator());
+    if (loadError != null) return ErrorStateX(message: loadError!, onRetry: _reload);
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

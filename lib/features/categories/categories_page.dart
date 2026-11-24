@@ -17,6 +17,7 @@ class CategoriesPage extends StatefulWidget {
 class _CategoriesPageState extends State<CategoriesPage> {
   bool brandsTab = false;
   bool loading = true;
+  String? loadError;
   List<Category> categories = [];
   List<Brand> brands = [];
 
@@ -28,13 +29,19 @@ class _CategoriesPageState extends State<CategoriesPage> {
 
   Future<void> _reload() async {
     final st = context.read<AppState>();
-    final res = await Future.wait([st.catalog.categories(), st.catalog.brands()]);
-    if (!mounted) return;
-    setState(() {
-      categories = res[0] as List<Category>;
-      brands = res[1] as List<Brand>;
-      loading = false;
-    });
+    try {
+      final res = await Future.wait([st.catalog.categories(), st.catalog.brands()]);
+      if (!mounted) return;
+      setState(() {
+        categories = res[0] as List<Category>;
+        brands = res[1] as List<Brand>;
+        loading = false;
+        loadError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   @override
@@ -53,7 +60,9 @@ class _CategoriesPageState extends State<CategoriesPage> {
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : items.isEmpty
+            : loadError != null
+                ? ErrorStateX(message: loadError!, onRetry: _reload)
+                : items.isEmpty
                 ? EmptyStateX(title: tr('none'), body: tr('cats.emptyHint'), icon: Icons.category_outlined)
                 : TableX(
                     columns: [tr('name'), tr('qty'), tr('actions')],

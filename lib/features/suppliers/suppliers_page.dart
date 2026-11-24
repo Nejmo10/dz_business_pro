@@ -18,6 +18,7 @@ class SuppliersPage extends StatefulWidget {
 class _SuppliersPageState extends State<SuppliersPage> {
   String query = '';
   bool loading = true;
+  String? loadError;
   List<Supplier> suppliers = [];
 
   @override
@@ -28,9 +29,14 @@ class _SuppliersPageState extends State<SuppliersPage> {
 
   Future<void> _reload() async {
     final st = context.read<AppState>();
-    final list = await st.people.suppliers(query: query);
-    if (!mounted) return;
-    setState(() { suppliers = list; loading = false; });
+    try {
+      final list = await st.people.suppliers(query: query);
+      if (!mounted) return;
+      setState(() { suppliers = list; loading = false; loadError = null; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   @override
@@ -49,7 +55,9 @@ class _SuppliersPageState extends State<SuppliersPage> {
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : suppliers.isEmpty
+            : loadError != null
+                ? ErrorStateX(message: loadError!, onRetry: _reload)
+                : suppliers.isEmpty
                 ? EmptyStateX(title: tr('sup.none'), body: tr('sup.noneHint'), icon: Icons.local_shipping_outlined,
                     action: AppButton(label: tr('add'), icon: Icons.add, onPressed: () => _edit(context, null)))
                 : TableX(

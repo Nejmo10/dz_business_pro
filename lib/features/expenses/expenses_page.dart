@@ -18,6 +18,7 @@ class ExpensesPage extends StatefulWidget {
 
 class _ExpensesPageState extends State<ExpensesPage> {
   bool loading = true;
+  String? loadError;
   int monthOffset = 0;
   List<Expense> expenses = [];
   List<(String, String, String)> cats = [];
@@ -41,20 +42,26 @@ class _ExpensesPageState extends State<ExpensesPage> {
   Future<void> _reload() async {
     final st = context.read<AppState>();
     final (from, to) = _period;
-    final res = await Future.wait([
-      st.expenses.list(from: from, to: to),
-      st.expenses.categories(),
-      st.expenses.monthly(12),
-      st.expenses.totalC(from, to),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      expenses = res[0] as List<Expense>;
-      cats = res[1] as List<(String, String, String)>;
-      monthly = res[2] as List<MapEntry<String, int>>;
-      total = res[3] as int;
-      loading = false;
-    });
+    try {
+      final res = await Future.wait([
+        st.expenses.list(from: from, to: to),
+        st.expenses.categories(),
+        st.expenses.monthly(12),
+        st.expenses.totalC(from, to),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        expenses = res[0] as List<Expense>;
+        cats = res[1] as List<(String, String, String)>;
+        monthly = res[2] as List<MapEntry<String, int>>;
+        total = res[3] as int;
+        loading = false;
+        loadError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   @override
@@ -92,7 +99,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : expenses.isEmpty
+            : loadError != null
+                ? ErrorStateX(message: loadError!, onRetry: _reload)
+                : expenses.isEmpty
                 ? EmptyStateX(title: tr('exp.none'), body: tr('exp.noneHint'), icon: Icons.receipt_long_outlined)
                 : TableX(
                     columns: [tr('date'), tr('exp.category'), tr('details'), tr('method'), tr('amount'), tr('actions')],

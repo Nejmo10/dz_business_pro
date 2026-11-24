@@ -18,6 +18,7 @@ class CustomersPage extends StatefulWidget {
 class _CustomersPageState extends State<CustomersPage> {
   String query = '';
   bool loading = true;
+  String? loadError;
   List<Customer> customers = [];
 
   @override
@@ -28,9 +29,14 @@ class _CustomersPageState extends State<CustomersPage> {
 
   Future<void> _reload() async {
     final st = context.read<AppState>();
-    final list = await st.people.customers(query: query);
-    if (!mounted) return;
-    setState(() { customers = list; loading = false; });
+    try {
+      final list = await st.people.customers(query: query);
+      if (!mounted) return;
+      setState(() { customers = list; loading = false; loadError = null; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   @override
@@ -49,7 +55,9 @@ class _CustomersPageState extends State<CustomersPage> {
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : customers.isEmpty
+            : loadError != null
+                ? ErrorStateX(message: loadError!, onRetry: _reload)
+                : customers.isEmpty
                 ? EmptyStateX(title: tr('cust.none'), body: tr('cust.noneHint'), icon: Icons.people_outline,
                     action: AppButton(label: tr('add'), icon: Icons.add, onPressed: () => _edit(context, null)))
                 : TableX(

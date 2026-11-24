@@ -31,6 +31,7 @@ class _ReportsPageState extends State<ReportsPage> {
   List<List<String>> rows = [];
   bool loading = false;
   bool ran = false;
+  String? loadError;
 
   static const Map<String, String> _labels = {
     'sales': 'rep.sales', 'purchases': 'rep.purchases', 'expenses': 'rep.expenses',
@@ -60,6 +61,7 @@ class _ReportsPageState extends State<ReportsPage> {
   Future<void> _run() async {
     setState(() { loading = true; });
     final st = context.read<AppState>();
+    try {
     final db = st.database.db;
     final f = _fromIso, t = _toIso;
     final arName = gIsArabic;
@@ -198,7 +200,11 @@ class _ReportsPageState extends State<ReportsPage> {
     }
 
     if (!mounted) return;
-    setState(() { headers = header; rows = data; loading = false; ran = true; });
+    setState(() { headers = header; rows = data; loading = false; ran = true; loadError = null; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; ran = true; loadError = '$e'; });
+    }
   }
 
   List<double> get _widths {
@@ -284,7 +290,9 @@ class _ReportsPageState extends State<ReportsPage> {
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : !ran
+            : loadError != null
+                ? ErrorStateX(message: loadError!, onRetry: _run)
+                : !ran
                 ? EmptyStateX(title: tr('rep.pick'), body: tr('rep.pickHint'), icon: Icons.assessment_outlined)
                 : rows.isEmpty
                     ? EmptyStateX(title: tr('rep.noData'), body: tr('rep.pickHint'), icon: Icons.assessment_outlined)

@@ -40,23 +40,31 @@ class _PosPageState extends State<PosPage> {
     if (loading) _reload();
   }
 
+  String? loadError;
+
   Future<void> _reload() async {
     final st = context.read<AppState>();
-    final prods = await st.catalog.products();
-    final cats = await st.catalog.categories();
-    final custs = await st.people.customers();
-    if (!mounted) return;
-    setState(() {
-      products = prods;
-      categories = cats;
-      customers = custs;
-      for (final line in cart.values) {
-        for (final p in prods) {
-          if (p.id == line.product.id) line.product = p;
+    try {
+      final prods = await st.catalog.products();
+      final cats = await st.catalog.categories();
+      final custs = await st.people.customers();
+      if (!mounted) return;
+      setState(() {
+        products = prods;
+        categories = cats;
+        customers = custs;
+        for (final line in cart.values) {
+          for (final p in prods) {
+            if (p.id == line.product.id) line.product = p;
+          }
         }
-      }
-      loading = false;
-    });
+        loading = false;
+        loadError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   List<Product> get filtered => products.where((p) {
@@ -132,7 +140,9 @@ class _PosPageState extends State<PosPage> {
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
-                : list.isEmpty
+                : loadError != null
+                    ? ErrorStateX(message: loadError!, onRetry: _reload)
+                    : list.isEmpty
                     ? EmptyStateX(title: tr('pos.empty'), body: '', icon: Icons.inventory_2_outlined)
                     : GridView.builder(
                         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -166,7 +176,12 @@ class _PosPageState extends State<PosPage> {
   Future<void> _checkout() async {
     final saleId = await showDialog<int>(
       context: context,
-      builder: (ctx) => CheckoutDialog(lines: cart.values.toList(), customerId: customerId, customers: customers),
+      builder: (ctx) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: CheckoutDialog(lines: cart.values.toList(), customerId: customerId, customers: customers),
+        ),
+      ),
     );
     if (!mounted || saleId == null || saleId <= 0) return;
     setState(() {
@@ -449,18 +464,15 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
   Widget build(BuildContext context) {
     final st = context.read<AppState>();
     final t = _totals();
-    final paidRaw = Money.fromString(_paid.text);
+    final paidText = (_method == 'credit' || (_paid.text.isEmpty && _method != 'partial'))
+        ? (t.totalC / Money.centsPerUnit).toStringAsFixed(2)
+        : _paid.text;
+    final paidRaw = Money.fromString(paidText);
     final paid = _method == 'credit' ? 0 : paidRaw.clamp(0, t.totalC);
     final due = t.totalC - paid;
     final change = paidRaw > t.totalC ? paidRaw - t.totalC : 0;
     final cust = _customer;
     final needsCustomer = due > 0;
-
-    if (_method == 'credit') {
-      _paid.text = '0';
-    } else if (_paid.text.isEmpty && _method != 'partial') {
-      _paid.text = (t.totalC / Money.centsPerUnit).toStringAsFixed(2);
-    }
 
     return PopScope(
       canPop: !saving,

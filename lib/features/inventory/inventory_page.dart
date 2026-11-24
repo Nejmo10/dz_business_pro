@@ -28,8 +28,11 @@ class _InventoryPageState extends State<InventoryPage> {
     if (loading) _reload();
   }
 
+  String? loadError;
+
   Future<void> _reload() async {
     final st = context.read<AppState>();
+    try {
     final res = await Future.wait([
       st.inventory.stockValueC(),
       st.inventory.stockUnits(),
@@ -49,7 +52,12 @@ class _InventoryPageState extends State<InventoryPage> {
       movements = res[5] as List<StockMovement>;
       outCount = res[6] as int;
       loading = false;
+      loadError = null;
     });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   @override
@@ -97,6 +105,8 @@ class _InventoryPageState extends State<InventoryPage> {
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())
+            : loadError != null
+                ? ErrorStateX(message: loadError!, onRetry: _reload)
             : movements.isEmpty
                 ? EmptyStateX(title: tr('inv.movements'), body: tr('inv.emptyHint'), icon: Icons.swap_vert_rounded)
                 : TableX(

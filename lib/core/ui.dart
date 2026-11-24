@@ -506,6 +506,43 @@ class BadgeX extends StatelessWidget {
   }
 }
 
+/// Loading failure state shown instead of an endless spinner, with retry.
+class ErrorStateX extends StatelessWidget {
+  const ErrorStateX({super.key, required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 74, height: 74,
+            decoration: BoxDecoration(
+              color: C.danger.withValues(alpha: .10),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: const Icon(Icons.error_outline_rounded, size: 34, color: C.danger),
+          ),
+          const SizedBox(height: 16),
+          Text(tr('error.loadFailed'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Text(message, textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: C.textSecondary, height: 1.5),
+                maxLines: 6, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(height: 18),
+          AppButton(label: tr('error.retry'), icon: Icons.refresh_rounded, onPressed: onRetry),
+        ]),
+      ),
+    );
+  }
+}
+
 class EmptyStateX extends StatelessWidget {
   const EmptyStateX({super.key, required this.title, required this.body, this.icon = Icons.inbox_rounded, this.action});
   final String title, body;

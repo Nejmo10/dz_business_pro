@@ -1086,8 +1086,8 @@ class AnalyticsRepo {
     return rows.map((r) => (r['m'] as String, (r['s'] as int?) ?? 0)).toList();
   }
 
-  /// (sales total, purchases total, expenses total) per month for both charts.
-  Future<List<MapEntry<String, (int, int, int)>>> monthlySeries(int months) async {
+  /// (month, sales total, purchases total, expenses total) per month for both charts.
+  Future<List<(String, int, int, int)>> monthlySeries(int months) async {
     final sales = await db.db.rawQuery('''
       SELECT substr(sale_at,1,7) AS ym, SUM(total_c) AS s FROM sales
       WHERE status='completed' GROUP BY ym ORDER BY ym DESC LIMIT ?''', [months]);
@@ -1097,23 +1097,25 @@ class AnalyticsRepo {
     final exp = await db.db.rawQuery('''
       SELECT substr(paid_at,1,7) AS ym, SUM(amount_c) AS s FROM expenses
       GROUP BY ym ORDER BY ym DESC LIMIT ?''', [months]);
-    final map = <String, (int, int, int)>{};
+    final map = <String, List<int>>{};
+    void add(String? ym, int idx, Object? v) {
+      if (ym == null) return;
+      final cur = map[ym] ?? [0, 0, 0];
+      cur[idx] = (v as int?) ?? 0;
+      map[ym] = cur;
+    }
+
     for (final r in sales) {
-      final k = r['ym'] as String;
-      final cur = map[k] ?? (0, 0, 0);
-      map[k] = ((r['s'] as int?) ?? 0, cur.$2, cur.$3);
+      add(r['ym'] as String?, 0, r['s']);
     }
     for (final r in purch) {
-      final k = r['ym'] as String;
-      final cur = map[k] ?? (0, 0, 0);
-      map[k] = (cur.$1, (r['s'] as int?) ?? 0, cur.$3);
+      add(r['ym'] as String?, 1, r['s']);
     }
     for (final r in exp) {
-      final k = r['ym'] as String;
-      final cur = map[k] ?? (0, 0, 0);
-      map[k] = (cur.$1, cur.$2, (r['s'] as int?) ?? 0);
+      add(r['ym'] as String?, 2, r['s']);
     }
-    return map.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    final keys = map.keys.toList()..sort();
+    return [for (final k in keys) (k, map[k]![0], map[k]![1], map[k]![2])];
   }
 
   Future<List<Sale>> recentSales({int limit = 5}) async =>

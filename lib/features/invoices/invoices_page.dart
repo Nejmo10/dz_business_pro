@@ -29,11 +29,18 @@ class _InvoicesPageState extends State<InvoicesPage> {
     if (loading) _reload();
   }
 
+  String? loadError;
+
   Future<void> _reload() async {
     final st = context.read<AppState>();
-    final list = await st.sales.sales();
-    if (!mounted) return;
-    setState(() { sales = list; loading = false; });
+    try {
+      final list = await st.sales.sales();
+      if (!mounted) return;
+      setState(() { sales = list; loading = false; loadError = null; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   List<Sale> get filtered {
@@ -67,7 +74,9 @@ class _InvoicesPageState extends State<InvoicesPage> {
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : list.isEmpty
+            : loadError != null
+                ? ErrorStateX(message: loadError!, onRetry: _reload)
+                : list.isEmpty
                 ? EmptyStateX(title: tr('inv.none'), body: tr('inv.noneHint'), icon: Icons.receipt_outlined)
                 : TableX(
                     columns: [tr('reference'), tr('date'), tr('total'), tr('paid'), tr('remaining'), tr('status'), tr('actions')],

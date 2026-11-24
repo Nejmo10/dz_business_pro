@@ -28,21 +28,29 @@ class _PurchasesPageState extends State<PurchasesPage> {
     if (loading) _reload();
   }
 
+  String? loadError;
+
   Future<void> _reload() async {
     final st = context.read<AppState>();
-    final res = await Future.wait([
-      st.purchases.purchases(),
-      st.people.suppliers(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      final list = res[0] as List<Purchase>;
-      suppliers = List<Supplier>.from(res[1] as List<Supplier>);
-      purchases = query.isEmpty ? list : list.where((p) =>
-          p.invoiceNo.toLowerCase().contains(query.toLowerCase()) ||
-          _supplierName(p.supplierId).toLowerCase().contains(query.toLowerCase())).toList();
-      loading = false;
-    });
+    try {
+      final res = await Future.wait([
+        st.purchases.purchases(),
+        st.people.suppliers(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        final list = res[0] as List<Purchase>;
+        suppliers = List<Supplier>.from(res[1] as List<Supplier>);
+        purchases = query.isEmpty ? list : list.where((p) =>
+            p.invoiceNo.toLowerCase().contains(query.toLowerCase()) ||
+            _supplierName(p.supplierId).toLowerCase().contains(query.toLowerCase())).toList();
+        loading = false;
+        loadError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   String _supplierName(int? id) {
@@ -66,6 +74,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())
+            : loadError != null
+                ? ErrorStateX(message: loadError!, onRetry: _reload)
             : purchases.isEmpty
                 ? EmptyStateX(title: tr('purchase.none'), body: tr('purchase.noneHint'), icon: Icons.local_shipping_outlined)
                 : TableX(

@@ -28,6 +28,7 @@ class _ProductsPageState extends State<ProductsPage> {
   bool lowOnly = false;
   bool archivedOnly = false;
   bool loading = true;
+  String? loadError;
   List<Product> products = [];
   List<Category> categories = [];
   List<Brand> brands = [];
@@ -41,20 +42,26 @@ class _ProductsPageState extends State<ProductsPage> {
 
   Future<void> _reload() async {
     final st = context.read<AppState>();
-    final res = await Future.wait([
-      st.catalog.products(query: query, categoryId: categoryFilter, onlyLowStock: lowOnly, includeArchived: archivedOnly),
-      st.catalog.categories(),
-      st.catalog.brands(),
-      st.people.suppliers(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      products = res[0] as List<Product>;
-      categories = res[1] as List<Category>;
-      brands = res[2] as List<Brand>;
-      suppliers = res[3] as List<Supplier>;
-      loading = false;
-    });
+    try {
+      final res = await Future.wait([
+        st.catalog.products(query: query, categoryId: categoryFilter, onlyLowStock: lowOnly, includeArchived: archivedOnly),
+        st.catalog.categories(),
+        st.catalog.brands(),
+        st.people.suppliers(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        products = res[0] as List<Product>;
+        categories = res[1] as List<Category>;
+        brands = res[2] as List<Brand>;
+        suppliers = res[3] as List<Supplier>;
+        loading = false;
+        loadError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; loadError = '$e'; });
+    }
   }
 
   @override
@@ -99,7 +106,9 @@ class _ProductsPageState extends State<ProductsPage> {
       Expanded(
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : products.isEmpty
+            : loadError != null
+                ? ErrorStateX(message: loadError!, onRetry: _reload)
+                : products.isEmpty
                 ? EmptyStateX(title: tr('product.none'), body: tr('product.noneHint'), icon: Icons.inventory_2_outlined,
                     action: AppButton(label: tr('product.new'), icon: Icons.add, onPressed: () => _edit(context, null)))
                 : TableX(

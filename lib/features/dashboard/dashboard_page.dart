@@ -22,6 +22,7 @@ class _DashboardPageState extends State<DashboardPage> {
   int _range = 30;
   bool _loaded = false;
   bool _subscribed = false;
+  String? _error;
   int revenue = 0, salesCount = 0, gross = 0, net = 0, expenses = 0;
   int products = 0, lowStock = 0, custDebt = 0, supDebt = 0, stockValue = 0;
   List<MapEntry<String, int>> daily = const [];
@@ -61,6 +62,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final st = context.read<AppState>();
     final (from, to) = _period;
     final today = Dates.dayEnd(DateTime.now());
+    try {
     final r = await Future.wait([
       st.analytics.salesSum(from, to),
       st.analytics.salesCount(from, to),
@@ -101,11 +103,16 @@ class _DashboardPageState extends State<DashboardPage> {
       recentMovements = r[16] as List<StockMovement>;
       _loaded = true;
     });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loaded = true; _error = '$e'; });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_loaded) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return ErrorStateX(message: _error!, onRetry: _load);
     return RefreshIndicator(
       onRefresh: _load,
       child: SingleChildScrollView(
