@@ -47,6 +47,7 @@ const ar = <String, String>{
   'remote.desc': 'يُشغّل هذا الخيار سيرفر قراءة فقط داخل البرنامج على شبكة المحل (Wi-Fi محلي). افتح تطبيق جوال المدير على هاتفك، أدخل العنوان والرمز الظاهرين في البرنامج المكتبي، وستشاهد المبيعات والأرباح والمخزون والديون مباشرة من قاعدة بياناتكم الفعلية. لا يمكن لأي جهاز تعديل شيء — قراءة فقط، ولا يصل أي اتصال من خارج الشبكة.',
   'remote.start': 'تشغيل', 'remote.stop': 'إيقاف', 'remote.on': 'مُشغَّل', 'remote.off': 'متوقف',
   'remote.code': 'رمز الاقتران:', 'remote.url': 'العنوان', 'remote.howto': 'التطبيق: DzBusiness Pro Mobile — يتصل بنفس شبكة Wi-Fi. الرمز يتغير في كل تشغيل، لا تشاركه مع أحد. البيانات المعروضة: مبيعات اليوم/الأسبوع/الشهر، الأرباح، المخزون المنخفض، ديون العملاء والموردين، الشيكات المستحقة.',
+'remote.external': 'عنوان خارجي (اختياري — مثال 100.64.0.7:8090)', 'remote.extInfo': 'للمشاهدة من المنزل: ثبّت تطبيق Tailscale على الحاسوب والهاتف وأدخل عنوان Tailscale الخاص بحاسوبك هنا، ثم يظهر في نفس رمز QR. كذلك يمكن تمرير المنفذ 8090 من الراوتر. الرمز السري لا يُشارك مع أحد.', 'remote.qrHint': 'في التطبيق: اضغط «امسح رمز QR» ووجّه الكاميرا نحو هذا الرمز — لا حاجة لكتابة شيء.',
 
   // Onboarding
   'onb.welcome': 'مرحباً بك في دز بيزنس برو',
@@ -337,6 +338,7 @@ const fr = <String, String>{
   'remote.desc': "Ce choix démarre un serveur en lecture seule, sur le réseau Wi-Fi local de la boutique. Ouvrez l’appli mobile et saisissez l’adresse et le code affichés sur le PC, et consultez ventes, profits, stock et dettes depuis votre base réelle. Aucun appareil ne peut modifier quoi que ce soit — lecture seule, aucune connexion externe.",
   'remote.start': 'Démarrer', 'remote.stop': 'Arrêter', 'remote.on': 'Actif', 'remote.off': 'Arrêté',
   'remote.code': 'Code de jumelage :', 'remote.url': 'Adresse', 'remote.howto': "Application : DzBusiness Pro Mobile — sur le même Wi-Fi. Le code change à chaque démarrage, ne le partagez pas. Données affichées : ventes jour/semaine/mois, profits, stock bas, dettes clients/fournisseurs, chèques à échéance.",
+'remote.external': 'Adresse externe (optionnel — ex. 100.64.0.7:8090)', 'remote.extInfo': 'Pour consulter depuis la maison : installez Tailscale sur le PC et le téléphone, puis saisissez ici l\'adresse Tailscale du PC ; elle apparaît dans le même QR. Vous pouvez aussi rediriger le port 8090 du routeur. Ne partagez jamais le code.', 'remote.qrHint': 'Dans l\'appli : appuyez sur « Scanner le code QR » et visez ce code — aucune saisie nécessaire.',
 
   // Onboarding
   'onb.welcome': 'Bienvenue dans DzBusiness Pro',

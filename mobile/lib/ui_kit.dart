@@ -99,9 +99,22 @@ class KpiTile extends StatelessWidget {
             ),
           ]),
           const SizedBox(height: 8),
-          Text(value,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: color)),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 320),
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                        begin: const Offset(0, .16), end: Offset.zero)
+                    .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+                child: child,
+              ),
+            ),
+            child: Text(value,
+                key: ValueKey(value),
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: color)),
+          ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
             Text(subtitle!,
@@ -110,6 +123,30 @@ class KpiTile extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Gradient circular avatar carrying the business initial, used in the
+/// mobile app bar and pairing header.
+class BrandAvatar extends StatelessWidget {
+  const BrandAvatar({super.key, this.label = 'D', this.size = 36});
+  final String label;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size, height: size,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: [C.primary, C.secondary]),
+        shape: BoxShape.circle,
+      ),
+      child: Text(label.characters.first.toUpperCase(), style: TextStyle(
+          color: Colors.white, fontSize: size * .42, fontWeight: FontWeight.w900)),
     );
   }
 }

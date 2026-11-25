@@ -31,7 +31,12 @@ class ManagerServer {
   HttpServer? _server;
   HttpServer? get running => _server;
   String code = '';
+  String businessName = '';
   int port = 8090;
+
+  /// Optional address reachable from outside the shop LAN (e.g. a Tailscale
+  /// or forwarded host). Shown/displayed in the QR as a second candidate URL.
+  String externalHost = '';
 
   String? _boundHost;
   String? get host => _boundHost;
@@ -51,6 +56,11 @@ class ManagerServer {
       port,
     );
     _server = server;
+    try {
+      businessName = await _businessName();
+    } catch (_) {
+      businessName = '';
+    }
     try {
       final ifs = await NetworkInterface.list(type: InternetAddressType.IPv4);
       _boundHost = ifs

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -14,10 +16,17 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int tabIndex = 0;
   bool loading = true;
   String? error;
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+    lowerBound: .97,
+    upperBound: 1.0,
+  )..repeat(reverse: true);
+  Timer? _autoTimer;
   Map<String, dynamic>? summary;
   List<dynamic> daily = [];
   List<dynamic> top = [];
@@ -29,6 +38,15 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _refresh();
+    _autoTimer = Timer.periodic(
+        const Duration(seconds: 30), (_) { if (mounted && !loading) _refresh(); });
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    _autoTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -73,14 +91,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 52,
+        leading: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 10),
+          child: BrandAvatar(
+              label: (summary?['business'] as String? ?? 'D')),
+        ),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(summary?['business'] as String? ?? t('app'),
               style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: C.textPrimary)),
           Text(t('app'), style: const TextStyle(fontSize: 10.5, color: C.textSecondary)),
         ]),
         actions: [
-          IconButton(onPressed: _refresh, tooltip: t('refresh'),
-              icon: const Icon(Icons.refresh_rounded, color: C.primary)),
           TextButton(
             onPressed: () async {
               gAr = !gAr;
@@ -102,17 +124,34 @@ class _HomeScreenState extends State<HomeScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
                     children: [
-                      switch (tabIndex) {
-                        0 => _dashboard(),
-                        1 => _salesList(),
-                        2 => _stock(),
-                        _ => _debts(),
-                      },
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 240),
+                        switchInCurve: Curves.easeOutCubic,
+                        transitionBuilder: (child, anim) => FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                                    begin: const Offset(0, .04), end: Offset.zero)
+                                .animate(anim),
+                            child: child,
+                          ),
+                        ),
+                        child: KeyedSubtree(
+                          key: ValueKey(tabIndex),
+                          child: switch (tabIndex) {
+                            0 => _dashboard(),
+                            1 => _salesList(),
+                            2 => _stock(),
+                            _ => _debts(),
+                          },
+                        ),
+                      ),
                     ],
                   ),
                 ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tabIndex,
+        animationDuration: const Duration(milliseconds: 360),
         onDestinationSelected: (i) => setState(() { tabIndex = i; _refresh(); }),
         destinations: [
           NavigationDestination(icon: const Icon(Icons.dashboard_rounded), label: t('tab.home')),
@@ -120,6 +159,22 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(icon: const Icon(Icons.inventory_2_rounded), label: t('tab.stock')),
           NavigationDestination(icon: const Icon(Icons.account_balance_wallet_rounded), label: t('tab.debts')),
         ],
+      ),
+      floatingActionButton: ScaleTransition(
+        scale: _pulse,
+        child: FloatingActionButton.extended(
+          heroTag: 'refresh',
+          backgroundColor: C.primary,
+          foregroundColor: Colors.white,
+          elevation: 5,
+          tooltip: t('refresh'),
+          onPressed: _refresh,
+          icon: loading
+              ? const SizedBox(width: 17, height: 17,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.refresh_rounded),
+          label: Text(t('refresh'), style: const TextStyle(fontWeight: FontWeight.w800)),
+        ),
       ),
     );
   }

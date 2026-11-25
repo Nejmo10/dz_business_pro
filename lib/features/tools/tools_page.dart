@@ -31,10 +31,12 @@ class _ToolsPageState extends State<ToolsPage> {
   bool serverBusy = false;
   String? remoteError;
   final portCtl = TextEditingController(text: '8090');
+  final extCtl = TextEditingController();
 
   @override
   void dispose() {
     portCtl.dispose();
+    extCtl.dispose();
     if (mgr.running != null) mgr.stop();
     super.dispose();
   }
@@ -233,6 +235,7 @@ class _ToolsPageState extends State<ToolsPage> {
       } else {
         final port = int.tryParse(portCtl.text.trim()) ?? 8090;
         await mgr.start(port: port);
+        mgr.externalHost = extCtl.text.trim();
       }
     } catch (e) {
       remoteError = '$e';
@@ -243,7 +246,19 @@ class _ToolsPageState extends State<ToolsPage> {
 
   Widget _remote() {
     final server = mgr.running;
+    final ext = extCtl.text.trim();
     final url = server == null ? null : 'http://${mgr.host ?? '127.0.0.1'}:${mgr.port}';
+    final candidates = <String>[
+      if (url != null) url,
+      if (server != null && ext.isNotEmpty)
+        ext.startsWith('http') ? ext : 'http://$ext',
+    ];
+    final payload = jsonEncode({
+      'v': 1,
+      if (mgr.businessName.isNotEmpty) 'n': mgr.businessName,
+      'token': mgr.code,
+      'urls': candidates,
+    });
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       HoverCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -269,6 +284,15 @@ class _ToolsPageState extends State<ToolsPage> {
               onPressed: serverBusy ? null : _toggleServer,
             ),
           ]),
+          if (server != null) ...[
+            const SizedBox(height: 10),
+            FieldX(
+              controller: extCtl,
+              label: tr('remote.external'),
+              onChanged: (_) => setState(() => mgr.externalHost = extCtl.text.trim()),
+            ),
+            Text(tr('remote.extInfo'), style: const TextStyle(fontSize: 11.5, color: C.textSecondary, height: 1.5)),
+          ],
           if (remoteError != null) ...[
             const SizedBox(height: 10),
             ErrorStateX(message: remoteError!, onRetry: _toggleServer),
@@ -283,23 +307,37 @@ class _ToolsPageState extends State<ToolsPage> {
                 border: Border.all(color: C.border),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: _QrView(data: jsonEncode({'url': url, 'token': mgr.code}), size: 206),
+              child: _QrView(data: payload, size: 206),
             ),
             const SizedBox(height: 12),
+            if (mgr.businessName.isNotEmpty) ...[
+              Row(children: [
+                const Icon(Icons.storefront_rounded, size: 15, color: C.secondary),
+                const SizedBox(width: 6),
+                Text(mgr.businessName, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: C.textPrimary)),
+              ]),
+              const SizedBox(height: 6),
+            ],
             Row(children: [
               Text(tr('remote.code'), style: const TextStyle(fontSize: 12, color: C.textSecondary)),
               const SizedBox(width: 10),
               Text(mgr.code, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 6, color: C.primary)),
               const SizedBox(width: 14),
               IconButtonX(icon: Icons.copy_rounded, tooltip: tr('copy'), onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: jsonEncode({'url': url, 'token': mgr.code})));
+                await Clipboard.setData(ClipboardData(text: payload));
                 if (!mounted) return;
                 Toasts.show(context, tr('copied'), kind: ToastKind.success);
               }),
             ]),
             const SizedBox(height: 6),
             Text('${tr('remote.url')}: $url', style: const TextStyle(fontSize: 12.5, fontFamily: 'monospace', color: C.textPrimary)),
+            if (ext.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('${tr('remote.external')}: ${ext.startsWith('http') ? ext : 'http://$ext'}', style: const TextStyle(fontSize: 12.5, fontFamily: 'monospace', color: C.textSecondary)),
+            ],
             const SizedBox(height: 10),
+            Text(tr('remote.qrHint'), style: const TextStyle(fontSize: 12, color: C.textSecondary, height: 1.6)),
+            const SizedBox(height: 6),
             Text(tr('remote.howto'), style: const TextStyle(fontSize: 12, color: C.textSecondary, height: 1.6)),
           ],
         ]),
