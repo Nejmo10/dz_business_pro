@@ -27,6 +27,8 @@ dependencies:
   file_selector: ^1.0.3
   crypto: ^3.0.5
   bidi: ^2.0.0
+  shelf: ^1.4.1
+  qr: ^3.0.2
 
 dev_dependencies:
   flutter_test:

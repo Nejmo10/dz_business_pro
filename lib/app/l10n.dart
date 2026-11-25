@@ -42,7 +42,12 @@ const ar = <String, String>{
   'mod.expenses': 'المصاريف', 'mod.invoices': 'الفواتير', 'mod.finance': 'الصندوق',
   'mod.reports': 'التقارير', 'mod.settings': 'الإعدادات',
   'nav.collapsed': 'طيّ القائمة', 'nav.expanded': 'توسيع القائمة',
-  'notifications': 'الإشعارات', 'notif.none': 'لا توجد إشعارات جديدة.', 'notif.checksDue': 'شيكات مستحقة', 'notif.checksNone': 'لا شيكات مستحقة.', 'globalSearch': 'بحث عام...', 'profile': 'الملف الشخصي',
+  'notifications': 'الإشعارات', 'notif.none': 'لا توجد إشعارات جديدة.', 'notif.checksDue': 'شيكات مستحقة', 'notif.checksNone': 'لا شيكات مستحقة.', 'copy': 'نسخ', 'copied': 'تم النسخ',
+  'remote.title': 'جوال المدير', 'remote.subtitle': 'تابع محلّك من هاتفك عبر شبكة المحل', 'globalSearch': 'بحث عام...', 'profile': 'الملف الشخصي',
+  'remote.desc': 'يُشغّل هذا الخيار سيرفر قراءة فقط داخل البرنامج على شبكة المحل (Wi-Fi محلي). افتح تطبيق جوال المدير على هاتفك، أدخل العنوان والرمز الظاهرين في البرنامج المكتبي، وستشاهد المبيعات والأرباح والمخزون والديون مباشرة من قاعدة بياناتكم الفعلية. لا يمكن لأي جهاز تعديل شيء — قراءة فقط، ولا يصل أي اتصال من خارج الشبكة.',
+  'remote.start': 'تشغيل', 'remote.stop': 'إيقاف', 'remote.on': 'مُشغَّل', 'remote.off': 'متوقف',
+  'remote.code': 'رمز الاقتران:', 'remote.url': 'العنوان', 'remote.howto': 'التطبيق: DzBusiness Pro Mobile — يتصل بنفس شبكة Wi-Fi. الرمز يتغير في كل تشغيل، لا تشاركه مع أحد. البيانات المعروضة: مبيعات اليوم/الأسبوع/الشهر، الأرباح، المخزون المنخفض، ديون العملاء والموردين، الشيكات المستحقة.',
+
   // Onboarding
   'onb.welcome': 'مرحباً بك في دز بيزنس برو',
   'onb.welcomeDesc': 'النظام الكامل لإدارة المتجر ونقطة البيع. دعنا نضبط نشاطك التجاري في دقيقة واحدة.',
@@ -327,7 +332,12 @@ const fr = <String, String>{
   'mod.expenses': 'Dépenses', 'mod.invoices': 'Factures', 'mod.finance': 'Caisse',
   'mod.reports': 'Rapports', 'mod.settings': 'Paramètres',
   'nav.collapsed': 'Réduire le menu', 'nav.expanded': 'Ouvrir le menu',
-  'notifications': 'Notifications', 'notif.none': 'Aucune nouvelle notification.', 'notif.checksDue': 'Chèques à échéance', 'notif.checksNone': 'Aucun chèque à échéance.', 'globalSearch': 'Recherche globale...', 'profile': 'Profil',
+  'notifications': 'Notifications', 'notif.none': 'Aucune nouvelle notification.', 'notif.checksDue': 'Chèques à échéance', 'notif.checksNone': 'Aucun chèque à échéance.', 'copy': 'Copier', 'copied': 'Copié',
+  'remote.title': 'Mobile du gérant', 'remote.subtitle': 'Suivez votre boutique depuis votre téléphone', 'globalSearch': 'Recherche globale...', 'profile': 'Profil',
+  'remote.desc': "Ce choix démarre un serveur en lecture seule, sur le réseau Wi-Fi local de la boutique. Ouvrez l’appli mobile et saisissez l’adresse et le code affichés sur le PC, et consultez ventes, profits, stock et dettes depuis votre base réelle. Aucun appareil ne peut modifier quoi que ce soit — lecture seule, aucune connexion externe.",
+  'remote.start': 'Démarrer', 'remote.stop': 'Arrêter', 'remote.on': 'Actif', 'remote.off': 'Arrêté',
+  'remote.code': 'Code de jumelage :', 'remote.url': 'Adresse', 'remote.howto': "Application : DzBusiness Pro Mobile — sur le même Wi-Fi. Le code change à chaque démarrage, ne le partagez pas. Données affichées : ventes jour/semaine/mois, profits, stock bas, dettes clients/fournisseurs, chèques à échéance.",
+
   // Onboarding
   'onb.welcome': 'Bienvenue dans DzBusiness Pro',
   'onb.welcomeDesc': 'Le système complet de gestion de boutique et de point de vente. Configurons votre activité en une minute.',

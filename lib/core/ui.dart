@@ -291,6 +291,7 @@ class FieldX extends StatelessWidget {
     this.obscure = false,
     this.maxLines = 1,
     this.autofocus = false,
+    this.enabled = true,
     this.inputFormatters,
     this.onSubmitted,
   });
@@ -303,6 +304,7 @@ class FieldX extends StatelessWidget {
   final bool obscure;
   final int maxLines;
   final bool autofocus;
+  final bool enabled;
   final List<TextInputFormatter>? inputFormatters;
 
   @override
@@ -313,6 +315,7 @@ class FieldX extends StatelessWidget {
       onFieldSubmitted: onSubmitted,
       validator: validator,
       autofocus: autofocus,
+      enabled: enabled,
       obscureText: obscure,
       maxLines: maxLines,
       keyboardType: keyboardType,

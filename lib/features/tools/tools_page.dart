@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
+import 'package:qr/qr.dart';
 
 import '../../app/l10n.dart';
 import '../../app/state.dart';
@@ -9,6 +12,7 @@ import '../../app/theme.dart';
 import '../../core/money.dart';
 import '../../core/ui.dart';
 import '../../data/database/app_database.dart';
+import '../../remote/manager_server.dart';
 
 /// Trader toolbox: user guide, database health center and the business
 /// assistant. Every answer is computed from the live SQLite database.
@@ -23,6 +27,17 @@ class _ToolsPageState extends State<ToolsPage> {
   bool healthRunning = false;
   List<HealthResult> health = [];
   String? healthError;
+  final ManagerServer mgr = ManagerServer(AppDatabase.instance);
+  bool serverBusy = false;
+  String? remoteError;
+  final portCtl = TextEditingController(text: '8090');
+
+  @override
+  void dispose() {
+    portCtl.dispose();
+    if (mgr.running != null) mgr.stop();
+    super.dispose();
+  }
   int assistQuestion = 1;
   String assistAnswer = '';
   bool assistLoading = false;
@@ -35,6 +50,7 @@ class _ToolsPageState extends State<ToolsPage> {
           ('guide', tr('guide.title')),
           ('health', tr('health.title')),
           ('assist', tr('assist.title')),
+          ('remote', tr('remote.title')),
         ],
         selected: tab,
         onChanged: (v) => setState(() => tab = v),
@@ -46,7 +62,9 @@ class _ToolsPageState extends State<ToolsPage> {
             ? _guide()
             : tab == 'health'
                 ? _health()
-                : _assistant(),
+                : tab == 'assist'
+                    ? _assistant()
+                    : _remote(),
       )),
     ]);
   }
@@ -206,6 +224,89 @@ class _ToolsPageState extends State<ToolsPage> {
     }
   }
 
+  // -------------------------------------------------------------- remote tab --
+  Future<void> _toggleServer() async {
+    setState(() { serverBusy = true; remoteError = null; });
+    try {
+      if (mgr.running != null) {
+        await mgr.stop();
+      } else {
+        final port = int.tryParse(portCtl.text.trim()) ?? 8090;
+        await mgr.start(port: port);
+      }
+    } catch (e) {
+      remoteError = '$e';
+    }
+    if (!mounted) return;
+    setState(() => serverBusy = false);
+  }
+
+  Widget _remote() {
+    final server = mgr.running;
+    final url = server == null ? null : 'http://${mgr.host ?? '127.0.0.1'}:${mgr.port}';
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      HoverCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          FormHeader(title: tr('remote.title'), subtitle: tr('remote.subtitle')),
+          Text(tr('remote.desc'), style: const TextStyle(fontSize: 12.5, color: C.textSecondary, height: 1.55)),
+          const SizedBox(height: 14),
+          Row(children: [
+            BadgeX(
+              text: server == null ? tr('remote.off') : tr('remote.on'),
+              color: server == null ? C.textSecondary : C.success,
+            ),
+            const Spacer(),
+            SizedBox(
+              width: 130,
+              child: FieldX(controller: portCtl, label: 'Port',
+                  enabled: server == null, keyboardType: TextInputType.number),
+            ),
+            const SizedBox(width: 10),
+            AppButton(
+              label: server == null ? tr('remote.start') : tr('remote.stop'),
+              icon: server == null ? Icons.play_arrow_rounded : Icons.stop_rounded,
+              kind: server == null ? AppButtonKind.primary : AppButtonKind.danger,
+              onPressed: serverBusy ? null : _toggleServer,
+            ),
+          ]),
+          if (remoteError != null) ...[
+            const SizedBox(height: 10),
+            ErrorStateX(message: remoteError!, onRetry: _toggleServer),
+          ],
+          if (server != null && url != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: 230,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: C.border),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: _QrView(data: jsonEncode({'url': url, 'token': mgr.code}), size: 206),
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              Text(tr('remote.code'), style: const TextStyle(fontSize: 12, color: C.textSecondary)),
+              const SizedBox(width: 10),
+              Text(mgr.code, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 6, color: C.primary)),
+              const SizedBox(width: 14),
+              IconButtonX(icon: Icons.copy_rounded, tooltip: tr('copy'), onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: jsonEncode({'url': url, 'token': mgr.code})));
+                if (!mounted) return;
+                Toasts.show(context, tr('copied'), kind: ToastKind.success);
+              }),
+            ]),
+            const SizedBox(height: 6),
+            Text('${tr('remote.url')}: $url', style: const TextStyle(fontSize: 12.5, fontFamily: 'monospace', color: C.textPrimary)),
+            const SizedBox(height: 10),
+            Text(tr('remote.howto'), style: const TextStyle(fontSize: 12, color: C.textSecondary, height: 1.6)),
+          ],
+        ]),
+      ),
+    ]);
+  }
+
   // ------------------------------------------------------------ assistant tab --
   Widget _assistant() {
     final questions = {1: tr('assist.q1'), 2: tr('assist.q2'), 3: tr('assist.q3'), 4: tr('assist.q4'), 5: tr('assist.q5')};
@@ -301,4 +402,44 @@ class HealthResult {
   const HealthResult({required this.title, required this.detail, required this.ok});
   final String title, detail;
   final bool ok;
+}
+
+class _QrView extends StatelessWidget {
+  const _QrView({required this.data, required this.size});
+  final String data;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = QrImage(QrCode.fromData(data: data, errorCorrectLevel: QrErrorCorrectLevel.M));
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _QrPainter(image, C.textPrimary),
+    );
+  }
+}
+
+class _QrPainter extends CustomPainter {
+  const _QrPainter(this.image, this.color);
+  final QrImage image;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cell = size.width / image.moduleCount;
+    final paint = Paint()..color = color;
+    for (var row = 0; row < image.moduleCount; row++) {
+      for (var col = 0; col < image.moduleCount; col++) {
+        if (image.isDark(row, col)) {
+          canvas.drawRect(
+            Rect.fromLTWH(col * cell, row * cell, cell + 0.01, cell + 0.01),
+            paint,
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _QrPainter old) => old.image != image;
 }
