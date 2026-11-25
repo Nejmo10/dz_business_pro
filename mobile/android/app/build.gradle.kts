@@ -7,7 +7,9 @@ plugins {
 android {
     namespace = "com.example.dz_business_mobile"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+
+    // Pure-Dart plugins only (http, shared_preferences, fl_chart, intl):
+    // no native toolchain is needed, so the NDK is not requested.
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
