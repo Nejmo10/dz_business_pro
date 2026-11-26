@@ -52,7 +52,7 @@ const ar = <String, String>{
   // Onboarding
   'onb.welcome': 'مرحباً بك في دز بيزنس برو',
   'onb.welcomeDesc': 'النظام الكامل لإدارة المتجر ونقطة البيع. دعنا نضبط نشاطك التجاري في دقيقة واحدة.',
-  'onb.step1': 'معلومات النشاط', 'onb.step1Desc': 'اسم النشاط ونوعه وشعاره',
+  'onb.step1': 'معلومات النشاط', 'onb.step1Desc': 'اسم النشاط وشعاره',
   'onb.step2': 'التواصل', 'onb.step2Desc': 'العنوان والهاتف والبريد',
   'onb.step3': 'اللغة والعملة', 'onb.step3Desc': 'لغة الواجهة والعملة الافتراضية',
   'onb.step4': 'الضريبة والإيصالات', 'onb.step4Desc': 'إعدادات الضريبة وشكل الإيصال',
@@ -343,7 +343,7 @@ const fr = <String, String>{
   // Onboarding
   'onb.welcome': 'Bienvenue dans DzBusiness Pro',
   'onb.welcomeDesc': 'Le système complet de gestion de boutique et de point de vente. Configurons votre activité en une minute.',
-  'onb.step1': 'Informations activité', 'onb.step1Desc': "Nom, activité et logo",
+  'onb.step1': 'Informations activité', 'onb.step1Desc': "Nom et logo",
   'onb.step2': 'Coordonnées', 'onb.step2Desc': 'Adresse, téléphone et e-mail',
   'onb.step3': 'Langue et devise', 'onb.step3Desc': "Langue de l'interface et devise",
   'onb.step4': 'Taxe et reçus', 'onb.step4Desc': 'Paramétrage fiscal et format de reçu',

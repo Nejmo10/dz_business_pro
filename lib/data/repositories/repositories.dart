@@ -17,6 +17,41 @@ class AppException implements Exception {
   String toString() => message;
 }
 
+/// Advances a document counter (sale/purchase/return) atomically and ALWAYS
+/// persists it. The previous `tx.update` silently did nothing when the
+/// settings row did not exist (databases created before the seed existed),
+/// so every document reused the same number and the second insert hit the
+/// UNIQUE(invoice_no) constraint.
+///
+/// Fix = upsert + floor: the new value never goes below the highest number
+/// already present in [table].[column] with the given [numberPrefix], so a
+/// legacy database without the counter row still produces unique numbers.
+Future<int> nextCounter(
+  Transaction tx,
+  String key, {
+  String table = '',
+  String column = '',
+  String numberPrefix = '',
+}) async {
+  final rows = await tx.query('app_settings', where: 'key = ?', whereArgs: [key], limit: 1);
+  var current = rows.isEmpty ? 0 : (int.tryParse('${rows.first['value']}') ?? 0);
+  if (table.isNotEmpty && column.isNotEmpty && numberPrefix.isNotEmpty) {
+    final r2 = await tx.rawQuery(
+      'SELECT MAX(CAST(substr($column, ?) AS INTEGER)) AS m FROM $table WHERE $column LIKE ?',
+      [numberPrefix.length + 1, '$numberPrefix%'],
+    );
+    final m = r2.isEmpty ? 0 : ((r2.first['m'] as num?)?.toInt() ?? 0);
+    if (m > current) current = m;
+  }
+  final n = current + 1;
+  await tx.insert(
+    'app_settings',
+    {'key': key, 'value': '$n'},
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+  return n;
+}
+
 class SalesTotals {
   SalesTotals({required this.subtotalC, required this.discountC, required this.taxC, required this.totalC});
   final int subtotalC, discountC, taxC, totalC;
@@ -536,11 +571,10 @@ class SalesRepo {
       final totals = computeTotals(
           subtotalC: subtotal, discountC: discountC, taxEnabled: taxEnabled, taxRate: taxRate);
 
-      final rows = await tx.query('app_settings', where: 'key = ?', whereArgs: ['sale_counter'], limit: 1);
-      final n = ((rows.isEmpty ? 0 : int.parse(rows.first['value'] as String))) + 1;
-      await tx.update('app_settings', {'value': '$n'}, where: 'key = ?', whereArgs: ['sale_counter']);
       final prefixRows = await tx.query('business_profile', limit: 1);
       final prefix = prefixRows.isEmpty ? 'F' : prefixRows.first['invoice_prefix'] as String? ?? 'F';
+      final n = await nextCounter(tx, 'sale_counter',
+          table: 'sales', column: 'invoice_no', numberPrefix: '$prefix-');
       final invoiceNo = '$prefix-${n.toString().padLeft(5, '0')}';
 
       final paidFinal = paymentMethod == 'credit' ? 0 : paidC.clamp(0, totals.totalC);
@@ -677,9 +711,8 @@ class ReturnsRepo {
       if (srows.isEmpty) throw AppException('sale not found');
       final sale = Sale.fromRow(srows.first);
 
-      final rows = await tx.query('app_settings', where: 'key = ?', whereArgs: ['return_counter'], limit: 1);
-      final n = (rows.isEmpty ? 0 : int.parse(rows.first['value'] as String)) + 1;
-      await tx.update('app_settings', {'value': '$n'}, where: 'key = ?', whereArgs: ['return_counter']);
+      final n = await nextCounter(tx, 'return_counter',
+          table: 'returns', column: 'return_no', numberPrefix: 'R');
 
       int total = 0;
       final returnId = await tx.insert('returns', {
@@ -801,9 +834,8 @@ class PurchasesRepo {
       final net = subtotal - discountC - extraCostsC;
       final total = taxEnabled ? net + (net * taxRate / 100).round() : net;
 
-      final rows = await tx.query('app_settings', where: 'key = ?', whereArgs: ['purchase_counter'], limit: 1);
-      final n = (rows.isEmpty ? 0 : int.parse(rows.first['value'] as String)) + 1;
-      await tx.update('app_settings', {'value': '$n'}, where: 'key = ?', whereArgs: ['purchase_counter']);
+      final n = await nextCounter(tx, 'purchase_counter',
+          table: 'purchases', column: 'invoice_no', numberPrefix: 'B-');
       final invoiceNo = 'B-${n.toString().padLeft(5, '0')}';
 
       final paid = paidC.clamp(0, total);

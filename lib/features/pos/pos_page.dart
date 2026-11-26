@@ -506,10 +506,23 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
     return PopScope(
       canPop: !saving,
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
-          child: FormHeader(title: tr('checkout.title'), subtitle: tr('checkout.summary')),
-        ),
+        Stack(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
+            child: FormHeader(title: tr('checkout.title'), subtitle: tr('checkout.summary')),
+          ),
+          if (!saving)
+            PositionedDirectional(
+              top: 10,
+              end: 10,
+              child: IconButtonX(
+                icon: Icons.close_rounded,
+                size: 32,
+                tooltip: tr('close'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+        ]),
         Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),

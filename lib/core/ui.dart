@@ -898,7 +898,20 @@ Future<T?> formDialog<T>(BuildContext context, {
           child: Container(
             width: width,
             color: C.surface,
-            child: body(ctx),
+            child: Stack(children: [
+              body(ctx),
+              // Every popup gets an always-visible exit button.
+              PositionedDirectional(
+                top: 8,
+                end: 8,
+                child: IconButtonX(
+                  icon: Icons.close_rounded,
+                  size: 32,
+                  tooltip: tr('close'),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ),
+            ]),
           ),
         ),
       ),

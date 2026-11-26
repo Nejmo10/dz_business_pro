@@ -282,10 +282,22 @@ class _PurchaseEditorState extends State<PurchaseEditor> {
           height: 660,
           color: C.surface,
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
-              child: FormHeader(title: tr('purchase.new'), subtitle: tr('purchase.hint')),
-            ),
+            Stack(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
+                child: FormHeader(title: tr('purchase.new'), subtitle: tr('purchase.hint')),
+              ),
+              PositionedDirectional(
+                top: 10,
+                end: 10,
+                child: IconButtonX(
+                  icon: Icons.close_rounded,
+                  size: 34,
+                  tooltip: tr('close'),
+                  onPressed: () => Navigator.pop(context, false),
+                ),
+              ),
+            ]),
             Expanded(
               child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Expanded(
@@ -474,7 +486,8 @@ class _PurchaseEditorState extends State<PurchaseEditor> {
     } catch (e) {
       if (!mounted) return;
       setState(() => saving = false);
-      Toasts.show(context, tr('error'), kind: ToastKind.error);
+      // Show the real cause instead of a bare "error" so nothing is a mystery.
+      Toasts.show(context, '${tr('error')}: $e', kind: ToastKind.error);
     }
   }
 }

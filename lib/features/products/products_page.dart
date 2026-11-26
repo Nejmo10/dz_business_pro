@@ -415,11 +415,23 @@ class _ProductEditorState extends State<ProductEditor> {
         child: Container(
           width: 720, color: C.surface,
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
-              child: FormHeader(title: widget.product == null ? tr('product.new') : tr('product.edit'),
-                  subtitle: widget.product?.name(gLocale == 'ar')),
-            ),
+            Stack(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
+                child: FormHeader(title: widget.product == null ? tr('product.new') : tr('product.edit'),
+                    subtitle: widget.product?.name(gLocale == 'ar')),
+              ),
+              PositionedDirectional(
+                top: 10,
+                end: 10,
+                child: IconButtonX(
+                  icon: Icons.close_rounded,
+                  size: 32,
+                  tooltip: tr('close'),
+                  onPressed: () => Navigator.pop(context, false),
+                ),
+              ),
+            ]),
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),

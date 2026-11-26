@@ -16,7 +16,6 @@ class OnboardingPage extends StatefulWidget {
 
 class _OnboardingPageState extends State<OnboardingPage> {
   final _name = TextEditingController();
-  final _activity = TextEditingController();
   final _address = TextEditingController();
   final _phone = TextEditingController();
   final _email = TextEditingController();
@@ -30,7 +29,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   @override
   void dispose() {
-    for (final c in [_name, _activity, _address, _phone, _email, _taxRate, _prefix]) {
+    for (final c in [_name, _address, _phone, _email, _taxRate, _prefix]) {
       c.dispose();
     }
     super.dispose();
@@ -42,7 +41,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
     setState(() => saving = true);
     final p = widget.state.profile
       ..name = _name.text.trim()
-      ..activity = _activity.text.trim()
       ..address = _address.text.trim()
       ..phone = _phone.text.trim()
       ..email = _email.text.trim()
@@ -191,15 +189,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
         Text(tr('onb.step1'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
         const SizedBox(height: 26),
         FieldX(label: tr('businessName'), controller: _name, validator: (v) => (v == null || v.trim().isEmpty) ? tr('requiredField') : null, autofocus: true),
-        const SizedBox(height: 16),
-        SmartDropdown(
-          items: const ['فقط', 'سوبرماركت', 'بوتيك', 'الكترونيات', 'مطعم', 'الطب', 'أخرى', 'Épicerie', 'Boutique', 'Électronique', 'Restaurant', 'Pharmacie', 'Autre'],
-          value: _activity.text.isEmpty ? null : _activity.text,
-          display: (s) => s,
-          onChanged: (v) => setState(() => _activity.text = v ?? ''),
-          label: tr('businessActivity'),
-          width: 440,
-        ),
       ];
 
   List<Widget> _step2() => [
