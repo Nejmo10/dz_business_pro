@@ -7,6 +7,9 @@ analyzer:
     - build/**
     - windows/**
     - linux/**
+    # mobile/ is an independent Flutter package with its own pubspec,
+    # analyzed by its own CI step (mobile/lib, mobile/test).
+    - mobile/**
 
 linter:
   rules:
