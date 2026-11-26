@@ -26,6 +26,8 @@ void main() {
   late Directory tmp;
   late AppDatabase database;
   late PurchasesRepo purchases;
+  late CatalogRepo catalog;
+  late PeopleRepo people;
 
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('dzbp_ctr_test');
@@ -33,6 +35,8 @@ void main() {
     database = AppDatabase.instance;
     await database.open('${tmp.path}/counter_test.db');
     purchases = PurchasesRepo(database, InventoryRepo(database), SettingsRepo(database));
+    catalog = CatalogRepo(database);
+    people = PeopleRepo(database, InventoryRepo(database));
   });
 
   tearDown(() async {
@@ -47,10 +51,10 @@ void main() {
   test('two purchases in a row succeed with unique numbers even when the counter row is missing', () async {
     // Simulate a legacy database without the seeded counters.
     await database.db.delete('app_settings', where: "key LIKE '%_counter'");
-    final sid = await purchases.saveSupplier(Supplier(nameAr: 'المورد الأول'));
-    final p1 = await purchases.saveProduct(Product(
+    final sid = await people.saveSupplier(Supplier(nameAr: 'المورد الأول'));
+    final p1 = await catalog.saveProduct(Product(
         nameAr: 'صابون', nameFr: 'Savon', sku: 'P-1', costC: 5000, priceC: 6000));
-    final p2 = await purchases.saveProduct(Product(
+    final p2 = await catalog.saveProduct(Product(
         nameAr: 'سكر', nameFr: 'Sucre', sku: 'P-2', costC: 7000, priceC: 8000));
 
     final id1 = await purchases.createPurchase(
@@ -76,8 +80,8 @@ void main() {
       'subtotal_c': 100, 'discount_c': 0, 'tax_c': 0, 'extra_costs_c': 0,
       'total_c': 100, 'paid_c': 0, 'status': 'confirmed', 'notes': '',
     });
-    final sid = await purchases.saveSupplier(Supplier(nameAr: 'مورد'));
-    final p1 = await purchases.saveProduct(Product(
+    final sid = await people.saveSupplier(Supplier(nameAr: 'مورد'));
+    final p1 = await catalog.saveProduct(Product(
         nameAr: 'زيت', nameFr: 'Huile', sku: 'P-3', costC: 5000, priceC: 6000));
 
     await purchases.createPurchase(
