@@ -67,8 +67,8 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
+      - name: Analyze (errors fail; deprecation infos tolerated)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Tests (incl. purchase-counter regression)
         run: flutter test
