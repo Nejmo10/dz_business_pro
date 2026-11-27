@@ -1,0 +1,104 @@
+name: Build manager app APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['vibe/dz-business-pro-b9870e']
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.1'
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Tests
+        run: flutter test
+
+      - name: Build APK (release, single fat APK)
+        run: flutter build apk --release
+
+      - name: Build APK (debug preview for emulator quick install)
+        run: flutter build apk --debug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dzpro-manager-apk
+          path: |
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.1'
+          channel: stable
+          cache: true
+
+      - name: SQLite runtime for ffi tests
+        run: sudo apt-get update -y && sudo apt-get install -y libsqlite3-dev
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze (errors fail; deprecation infos tolerated)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Tests (incl. purchase-counter regression)
+        run: flutter test
+
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.1'
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Build Windows desktop (release)
+        run: flutter build windows --release
+
+      - name: Package portable app folder
+        shell: pwsh
+        run: |
+          $src = "build/windows/x64/runner/Release"
+          if (-not (Test-Path $src)) { $src = "build/windows/runner/Release" }
+          Compress-Archive -Path "$src/*" -DestinationPath "dz_business_pro_windows.zip" -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dz-business-pro-windows
+          path: dz_business_pro_windows.zip
+          if-no-files-found: error

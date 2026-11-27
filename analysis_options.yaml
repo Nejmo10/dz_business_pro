@@ -1,0 +1,18 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    use_build_context_synchronously: ignore
+  exclude:
+    - build/**
+    - windows/**
+    - linux/**
+    # mobile/ is an independent Flutter package with its own pubspec,
+    # analyzed by its own CI step (mobile/lib, mobile/test).
+    - mobile/**
+
+linter:
+  rules:
+    avoid_print: false
+    prefer_const_constructors: false
+    prefer_final_locals: false
